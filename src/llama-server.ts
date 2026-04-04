@@ -122,7 +122,7 @@ function buildArgs(config: LlamaServerConfig): string[] {
   args.push('-np', String(config.parallelSlots))
 
   if (config.jinja) args.push('--jinja')
-  if (config.flashAttn) args.push('-fa')
+  if (config.flashAttn) args.push('-fa', 'on')
 
   args.push(...config.extraArgs)
 
@@ -230,14 +230,14 @@ export async function startLlamaServer(
     serverBaseUrl = null
   })
 
-  // Wait for health
-  onLog?.('Waiting for llama-server to be ready...')
-  const healthy = await waitForHealth(baseUrl, 120_000)
+  // Wait for health — allow up to 10 minutes for first-run model download
+  onLog?.('Waiting for llama-server to be ready (first run may download the model)...')
+  const healthy = await waitForHealth(baseUrl, 600_000)
 
   if (!healthy) {
     stopLlamaServer()
     throw new Error(
-      'llama-server failed to start within 120 seconds.\n' +
+      'llama-server failed to start within 10 minutes.\n' +
       'Check that the model file exists and you have enough RAM/VRAM.'
     )
   }

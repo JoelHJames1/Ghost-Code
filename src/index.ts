@@ -196,7 +196,7 @@ async function main() {
       flashAttn: appConfig.flashAttn,
       extraArgs: appConfig.llamaExtraArgs,
     }, (line) => {
-      if (line.includes('ready') || line.includes('error') || line.includes('listening') || line.includes('model loaded')) {
+      if (line.includes('ready') || line.includes('error') || line.includes('listening') || line.includes('model loaded') || line.includes('download') || line.includes('progress') || line.includes('loading model') || line.includes('model size') || line.includes('warming')) {
         infoMsg(line)
       }
     })
