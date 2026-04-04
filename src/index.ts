@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 /**
- * Qwen Code — Agentic coding CLI powered by Ollama qwen3.5:9b
+ * Qwen Code — Agentic coding CLI powered by Ollama
  *
  * Usage:
  *   qwen                     Interactive REPL
@@ -11,8 +11,10 @@
 
 import { createInterface } from 'readline'
 import chalk from 'chalk'
-import { checkOllama, DEFAULT_CONFIG, type OllamaConfig } from './ollama.js'
-import { createConversation, runAgent } from './agent.js'
+import { checkOllama, type OllamaConfig } from './ollama.js'
+import { createConversation, runAgent, refreshSystemPrompt } from './agent.js'
+import { resolveConfig, formatConfig } from './config.js'
+import { estimateConversationTokens, getTokenBudget } from './context-window.js'
 import {
   banner,
   toolCallHeader,
@@ -45,12 +47,18 @@ ${chalk.bold('Usage:')}
 
 ${chalk.bold('Environment Variables:')}
   OLLAMA_BASE_URL             Ollama server URL (default: http://localhost:11434)
-  OLLAMA_MODEL                Default model (default: qwen3.5:9b)
+  OLLAMA_MODEL                Default model (default: qwen3.5:0.8b)
+
+${chalk.bold('Config File:')}
+  ~/.config/qwen-code/config.json
 
 ${chalk.bold('Interactive Commands:')}
   /exit, /quit                Exit the session
   /clear                      Clear conversation history
   /model <name>               Switch model mid-session
+  /tokens                     Show context window usage
+  /config                     Show resolved configuration
+  /refresh                    Refresh system prompt (git info, etc.)
   Ctrl+C                      Cancel current operation
   Ctrl+D                      Exit
 `)
@@ -73,9 +81,11 @@ for (let i = 0; i < args.length; i++) {
   }
 }
 
+const appConfig = resolveConfig(modelOverride ? { model: modelOverride } : {})
 const config: OllamaConfig = {
-  baseUrl: DEFAULT_CONFIG.baseUrl,
-  model: modelOverride || DEFAULT_CONFIG.model,
+  baseUrl: appConfig.baseUrl,
+  model: appConfig.model,
+  requestTimeoutMs: appConfig.requestTimeoutMs,
 }
 
 // ── Main ─────────────────────────────────────────────────────────────────
@@ -116,6 +126,7 @@ async function interactiveMode() {
   process.stderr.write(banner())
   infoMsg(`Model: ${config.model}`)
   infoMsg(`CWD: ${process.cwd()}`)
+  infoMsg(`Context window: ${getTokenBudget(config.model).toLocaleString()} tokens (with safety margin)`)
   infoMsg(`Type /help for commands, /exit to quit\n`)
 
   const conversation = createConversation()
@@ -242,7 +253,29 @@ function handleCommand(
       } else {
         config.model = arg
         infoMsg(`Switched to model: ${arg}`)
+        infoMsg(`Context budget: ${getTokenBudget(arg).toLocaleString()} tokens`)
       }
+      break
+    }
+
+    case '/tokens': {
+      const used = estimateConversationTokens(conversation)
+      const budget = getTokenBudget(config.model)
+      const pct = Math.round((used / budget) * 100)
+      infoMsg(`Context usage: ~${used.toLocaleString()} / ${budget.toLocaleString()} tokens (${pct}%)`)
+      infoMsg(`Messages: ${conversation.length}`)
+      break
+    }
+
+    case '/config': {
+      infoMsg('Resolved configuration:')
+      process.stderr.write(DIM(formatConfig(appConfig)) + '\n')
+      break
+    }
+
+    case '/refresh': {
+      refreshSystemPrompt(conversation)
+      infoMsg('System prompt refreshed with current environment state')
       break
     }
 
@@ -261,6 +294,9 @@ function handleCommand(
       infoMsg('  /exit, /quit    Exit the session')
       infoMsg('  /clear          Clear conversation history')
       infoMsg('  /model <name>   Switch model')
+      infoMsg('  /tokens         Show context window usage')
+      infoMsg('  /config         Show configuration')
+      infoMsg('  /refresh        Refresh system prompt')
       infoMsg('  /history        Show recent messages')
       infoMsg('  /help           Show this help')
       break

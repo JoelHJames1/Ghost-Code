@@ -1,10 +1,12 @@
 /**
- * Environment context — gathers cwd, git info, OS, etc. for the system prompt.
+ * Environment context — gathers cwd, git info, OS, project files for the system prompt.
  */
 
 import { execSync } from 'child_process'
-import { platform, release, hostname, userInfo } from 'os'
-import { basename } from 'path'
+import { readFileSync, existsSync } from 'fs'
+import { platform, release, userInfo } from 'os'
+import { basename, join } from 'path'
+import { resolveConfig } from './config.js'
 
 export interface EnvContext {
   cwd: string
@@ -44,10 +46,56 @@ export function getEnvContext(): EnvContext {
   return ctx
 }
 
+/**
+ * Gather project context from common project files.
+ * Returns formatted sections, respecting a total char budget.
+ */
+function gatherProjectContext(cwd: string): string {
+  const config = resolveConfig()
+  const MAX_TOTAL = 8192
+  const sections: string[] = []
+  let totalChars = 0
+
+  const files: Array<{ path: string; label: string; maxChars: number }> = [
+    { path: join(cwd, 'package.json'), label: 'package.json', maxChars: 2048 },
+    { path: join(cwd, 'README.md'), label: 'README.md', maxChars: 3072 },
+    { path: join(cwd, '.gitignore'), label: '.gitignore', maxChars: 1024 },
+    // Auto-detect project type configs
+    { path: join(cwd, 'tsconfig.json'), label: 'tsconfig.json', maxChars: 1024 },
+    { path: join(cwd, 'pyproject.toml'), label: 'pyproject.toml', maxChars: 1024 },
+    { path: join(cwd, 'Cargo.toml'), label: 'Cargo.toml', maxChars: 1024 },
+    { path: join(cwd, 'go.mod'), label: 'go.mod', maxChars: 1024 },
+    // User-provided project instructions
+    { path: join(cwd, config.projectInstructionsFile), label: 'Project Instructions', maxChars: 2048 },
+  ]
+
+  for (const { path, label, maxChars } of files) {
+    if (totalChars >= MAX_TOTAL) break
+    try {
+      if (!existsSync(path)) continue
+      let content = readFileSync(path, 'utf-8')
+      const budget = Math.min(maxChars, MAX_TOTAL - totalChars)
+      if (content.length > budget) {
+        content = content.slice(0, budget) + '\n... (truncated)'
+      }
+      sections.push(`## ${label}\n\`\`\`\n${content}\n\`\`\``)
+      totalChars += content.length
+    } catch {
+      // Skip unreadable files
+    }
+  }
+
+  return sections.length > 0
+    ? '\n\n# Project Context\n' + sections.join('\n\n')
+    : ''
+}
+
 export function buildSystemPrompt(ctx: EnvContext): string {
   const gitInfo = ctx.isGit
     ? `\n - Git repository: branch "${ctx.gitBranch}"${ctx.gitStatus ? `\n - Uncommitted changes:\n${ctx.gitStatus}` : ' (clean)'}`
     : '\n - Not a git repository'
+
+  const projectContext = gatherProjectContext(ctx.cwd)
 
   return `You are Qwen Code, an autonomous agentic coding assistant running locally via Ollama.
 You help users with software engineering tasks: writing code, fixing bugs, refactoring, explaining code, running commands, and more.
@@ -75,6 +123,7 @@ You help users with software engineering tasks: writing code, fixing bugs, refac
 - Write secure code — avoid injection vulnerabilities
 - Keep changes minimal and focused on what was asked
 - If something fails, read the error and diagnose before retrying
+- If a tool call fails, try a different approach rather than repeating the same call
 
 # Environment
  - Working directory: ${ctx.cwd}
@@ -83,5 +132,5 @@ You help users with software engineering tasks: writing code, fixing bugs, refac
  - Shell: ${ctx.shell}
  - User: ${ctx.user}
  - Date: ${ctx.date}
- - Model: Ollama qwen3.5:0.8b (running locally — all data stays on your machine)`
+ - Model: Running locally via Ollama — all data stays on your machine${projectContext}`
 }

@@ -44,7 +44,9 @@ export const EditTool: ToolDefinition = {
       const content = readFileSync(filePath, 'utf-8')
 
       if (!content.includes(oldStr)) {
-        return `Error: old_string not found in ${filePath}. Make sure it matches exactly including whitespace.`
+        // Provide fuzzy hint: show nearby lines that contain words from old_string
+        const hint = findSimilarLines(content, oldStr)
+        return `Error: old_string not found in ${filePath}. Make sure it matches exactly including whitespace.${hint}`
       }
 
       let updated: string
@@ -67,4 +69,38 @@ export const EditTool: ToolDefinition = {
       return `Error editing file: ${e.message}`
     }
   },
+}
+
+/**
+ * Find lines in content that are similar to the search string.
+ * Helps the model self-correct when an exact match fails.
+ */
+function findSimilarLines(content: string, search: string): string {
+  // Extract significant words (3+ chars) from the search string
+  const words = search
+    .split(/\s+/)
+    .filter(w => w.length >= 3)
+    .slice(0, 8)
+
+  if (words.length === 0) return ''
+
+  const lines = content.split('\n')
+  const matches: Array<{ line: number; text: string; score: number }> = []
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]!
+    const score = words.filter(w => line.includes(w)).length
+    if (score >= Math.max(1, Math.floor(words.length / 3))) {
+      matches.push({ line: i + 1, text: line, score })
+    }
+  }
+
+  // Sort by score and take top 5
+  matches.sort((a, b) => b.score - a.score)
+  const top = matches.slice(0, 5)
+
+  if (top.length === 0) return ''
+
+  const hint = top.map(m => `  ${m.line}: ${m.text.slice(0, 120)}`).join('\n')
+  return `\n\nSimilar lines found in the file:\n${hint}\n\nTry reading the file first to get the exact content.`
 }

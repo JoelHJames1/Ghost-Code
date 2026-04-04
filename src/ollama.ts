@@ -3,6 +3,9 @@
  * with streaming and tool calling support.
  */
 
+import { retryWithBackoff } from './errors.js'
+import { resolveConfig, type QwenConfig } from './config.js'
+
 export interface Tool {
   type: 'function'
   function: {
@@ -38,12 +41,13 @@ export interface StreamDelta {
 export interface OllamaConfig {
   baseUrl: string
   model: string
+  requestTimeoutMs?: number
 }
 
-const DEFAULT_CONFIG: OllamaConfig = {
-  baseUrl: process.env.OLLAMA_BASE_URL || 'http://localhost:11434',
-  model: process.env.OLLAMA_MODEL || 'qwen3.5:0.8b',
-}
+const DEFAULT_CONFIG: OllamaConfig = (() => {
+  const cfg = resolveConfig()
+  return { baseUrl: cfg.baseUrl, model: cfg.model, requestTimeoutMs: cfg.requestTimeoutMs }
+})()
 
 /**
  * Check if Ollama is running and the model is available.
@@ -82,39 +86,46 @@ export async function chatCompletion(
     body.tools = tools
   }
 
-  const res = await fetch(`${config.baseUrl}/v1/chat/completions`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
+  const timeoutMs = config.requestTimeoutMs || 120_000
+
+  return retryWithBackoff(async () => {
+    const res = await fetch(`${config.baseUrl}/v1/chat/completions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(timeoutMs),
+    })
+
+    if (!res.ok) {
+      const text = await res.text()
+      const err = new Error(`Ollama API error ${res.status}: ${text}`) as any
+      err.status = res.status
+      throw err
+    }
+
+    const data = (await res.json()) as {
+      choices: Array<{
+        message: {
+          role: string
+          content: string | null
+          tool_calls?: Array<{
+            id: string
+            type: string
+            function: { name: string; arguments: string }
+          }>
+        }
+      }>
+    }
+
+    const choice = data.choices[0]
+    if (!choice) throw new Error('No response from model')
+
+    return {
+      role: 'assistant' as const,
+      content: choice.message.content,
+      tool_calls: choice.message.tool_calls as ToolCall[] | undefined,
+    }
   })
-
-  if (!res.ok) {
-    const text = await res.text()
-    throw new Error(`Ollama API error ${res.status}: ${text}`)
-  }
-
-  const data = (await res.json()) as {
-    choices: Array<{
-      message: {
-        role: string
-        content: string | null
-        tool_calls?: Array<{
-          id: string
-          type: string
-          function: { name: string; arguments: string }
-        }>
-      }
-    }>
-  }
-
-  const choice = data.choices[0]
-  if (!choice) throw new Error('No response from model')
-
-  return {
-    role: 'assistant',
-    content: choice.message.content,
-    tool_calls: choice.message.tool_calls as ToolCall[] | undefined,
-  }
 }
 
 /**
@@ -135,10 +146,12 @@ export async function* chatCompletionStream(
     body.tools = tools
   }
 
+  const timeoutMs = config.requestTimeoutMs || 120_000
   const res = await fetch(`${config.baseUrl}/v1/chat/completions`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
+    signal: AbortSignal.timeout(timeoutMs),
   })
 
   if (!res.ok) {
