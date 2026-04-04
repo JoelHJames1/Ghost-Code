@@ -74,7 +74,7 @@ export function errorKindMessage(kind: OllamaErrorKind, raw: string): string {
     case 'timeout':
       return `Ollama timed out. The model may be too large for your hardware, or inference is taking too long.\n  ${raw}`
     case 'connection':
-      return `Cannot connect to Ollama. Is it running? Try: ollama serve\n  ${raw}`
+      return `Cannot connect to the inference server. Is llama-server running?\n  ${raw}`
     case 'context_overflow':
       return `Context window exceeded. The conversation is too long for this model.`
     case 'format':

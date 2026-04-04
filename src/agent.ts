@@ -14,9 +14,9 @@
 import {
   chatCompletion,
   type Message,
-  type OllamaConfig,
-  DEFAULT_CONFIG,
-} from './ollama.js'
+  type ServerConfig,
+} from './api.js'
+import { resolveConfig } from './config.js'
 import { getToolSpecs, getTool, validateToolArgs } from './tools/index.js'
 import { buildSystemPrompt, getEnvContext } from './context.js'
 import { classifyOllamaError, errorKindMessage } from './errors.js'
@@ -26,7 +26,7 @@ const MAX_TOOL_ROUNDS = 30 // Safety limit on consecutive tool-call rounds
 
 export interface AgentOptions {
   stream?: boolean
-  config?: OllamaConfig
+  config: ServerConfig
   onText?: (text: string) => void
   onToolStart?: (name: string, args: Record<string, unknown>) => void
   onToolEnd?: (name: string, result: string) => void
@@ -60,7 +60,7 @@ export async function runAgent(
 ): Promise<string> {
   const {
     stream = true,
-    config = DEFAULT_CONFIG,
+    config,
     onText,
     onToolStart,
     onToolEnd,

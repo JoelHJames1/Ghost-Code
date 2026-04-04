@@ -1,10 +1,10 @@
 /**
- * Ollama client — uses the OpenAI-compatible /v1/chat/completions endpoint
- * with streaming and tool calling support.
+ * API client — uses the OpenAI-compatible /v1/chat/completions endpoint.
+ * Works with both llama-server (default) and Ollama as backends.
+ * Includes streaming, tool calling, and retry logic.
  */
 
 import { retryWithBackoff } from './errors.js'
-import { resolveConfig, type GemmaConfig } from './config.js'
 
 export interface Tool {
   type: 'function'
@@ -26,9 +26,16 @@ export interface ToolCall {
 
 export interface Message {
   role: 'system' | 'user' | 'assistant' | 'tool'
-  content: string | null
+  content: string | MessageContent[] | null
   tool_calls?: ToolCall[]
   tool_call_id?: string
+}
+
+/** Multimodal content block (text or image) for vision support. */
+export interface MessageContent {
+  type: 'text' | 'image_url'
+  text?: string
+  image_url?: { url: string }
 }
 
 export interface StreamDelta {
@@ -38,34 +45,10 @@ export interface StreamDelta {
   error?: string
 }
 
-export interface OllamaConfig {
+export interface ServerConfig {
   baseUrl: string
   model: string
   requestTimeoutMs?: number
-}
-
-const DEFAULT_CONFIG: OllamaConfig = (() => {
-  const cfg = resolveConfig()
-  return { baseUrl: cfg.baseUrl, model: cfg.model, requestTimeoutMs: cfg.requestTimeoutMs }
-})()
-
-/**
- * Check if Ollama is running and the model is available.
- */
-export async function checkOllama(config = DEFAULT_CONFIG): Promise<{ ok: boolean; error?: string }> {
-  try {
-    const res = await fetch(`${config.baseUrl}/api/tags`, { signal: AbortSignal.timeout(5000) })
-    if (!res.ok) return { ok: false, error: `Ollama returned ${res.status}` }
-    const data = (await res.json()) as { models?: Array<{ name: string }> }
-    const models = data.models?.map(m => m.name) ?? []
-    const hasModel = models.some(m => m === config.model || m.startsWith(config.model.split(':')[0]!))
-    if (!hasModel) {
-      return { ok: false, error: `Model "${config.model}" not found. Run: ollama pull ${config.model}` }
-    }
-    return { ok: true }
-  } catch (e: any) {
-    return { ok: false, error: `Cannot connect to Ollama at ${config.baseUrl}. Is it running? (ollama serve)` }
-  }
 }
 
 /**
@@ -75,7 +58,7 @@ export async function checkOllama(config = DEFAULT_CONFIG): Promise<{ ok: boolea
 export async function chatCompletion(
   messages: Message[],
   tools: Tool[],
-  config = DEFAULT_CONFIG,
+  config: ServerConfig,
 ): Promise<Message> {
   const body: Record<string, unknown> = {
     model: config.model,
@@ -98,7 +81,7 @@ export async function chatCompletion(
 
     if (!res.ok) {
       const text = await res.text()
-      const err = new Error(`Ollama API error ${res.status}: ${text}`) as any
+      const err = new Error(`API error ${res.status}: ${text}`) as any
       err.status = res.status
       throw err
     }
@@ -135,7 +118,7 @@ export async function chatCompletion(
 export async function* chatCompletionStream(
   messages: Message[],
   tools: Tool[],
-  config = DEFAULT_CONFIG,
+  config: ServerConfig,
 ): AsyncGenerator<StreamDelta> {
   const body: Record<string, unknown> = {
     model: config.model,
@@ -156,7 +139,7 @@ export async function* chatCompletionStream(
 
   if (!res.ok) {
     const text = await res.text()
-    yield { type: 'error', error: `Ollama API error ${res.status}: ${text}` }
+    yield { type: 'error', error: `API error ${res.status}: ${text}` }
     return
   }
 
@@ -248,4 +231,26 @@ export async function* chatCompletionStream(
   yield { type: 'done' }
 }
 
-export { DEFAULT_CONFIG }
+/**
+ * Create a vision message with an image.
+ * Encodes a local file as a base64 data URL.
+ */
+export function createVisionMessage(text: string, imagePath: string): Message {
+  const { readFileSync } = require('fs')
+  const imageData = readFileSync(imagePath)
+  const base64 = imageData.toString('base64')
+  const ext = imagePath.split('.').pop()?.toLowerCase() || 'png'
+  const mimeType = ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg'
+    : ext === 'png' ? 'image/png'
+    : ext === 'gif' ? 'image/gif'
+    : ext === 'webp' ? 'image/webp'
+    : 'image/png'
+
+  return {
+    role: 'user',
+    content: [
+      { type: 'text', text },
+      { type: 'image_url', image_url: { url: `data:${mimeType};base64,${base64}` } },
+    ],
+  }
+}

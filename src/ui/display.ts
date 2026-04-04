@@ -25,7 +25,7 @@ export function banner(): string {
     ${r('   ███')}${w('████')}${r('██')}${w('████')}${r('███')}
     ${r('   ███')}${w('██')}${b('██')}${r('██')}${w('██')}${b('██')}${r('███')}    ${BOLD('Gemma Code')} ${DIM('v1.0.0')}
     ${r('   ████████████████')}    ${DIM('Local-first agentic coding CLI')}
-    ${r('   ████████████████')}    ${DIM('Powered by Ollama gemma4:31b')}
+    ${r('   ████████████████')}    ${DIM('Powered by llama.cpp + gemma4')}
     ${r('   ████████████████')}
     ${r('   ████████████████')}
     ${r('   ████████████████')}

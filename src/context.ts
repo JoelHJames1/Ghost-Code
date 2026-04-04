@@ -97,7 +97,7 @@ export function buildSystemPrompt(ctx: EnvContext): string {
 
   const projectContext = gatherProjectContext(ctx.cwd)
 
-  return `You are Gemma Code, an autonomous agentic coding assistant running locally via Ollama.
+  return `You are Gemma Code, an autonomous agentic coding assistant running locally via llama.cpp.
 You help users with software engineering tasks: writing code, fixing bugs, refactoring, explaining code, running commands, and more.
 
 # How you work
@@ -132,5 +132,5 @@ You help users with software engineering tasks: writing code, fixing bugs, refac
  - Shell: ${ctx.shell}
  - User: ${ctx.user}
  - Date: ${ctx.date}
- - Model: Running locally via Ollama — all data stays on your machine${projectContext}`
+ - Model: Running locally via llama.cpp — all data stays on your machine${projectContext}`
 }

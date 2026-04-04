@@ -1,4 +1,4 @@
-import type { Tool } from '../ollama.js'
+import type { Tool } from '../api.js'
 import type { ToolDefinition } from './types.js'
 import { ReadTool } from './read.js'
 import { WriteTool } from './write.js'

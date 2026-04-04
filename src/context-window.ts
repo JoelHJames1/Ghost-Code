@@ -5,7 +5,7 @@
  * margin, inspired by OpenClaw's compaction system.
  */
 
-import type { Message } from './ollama.js'
+import type { Message } from './api.js'
 
 const CHARS_PER_TOKEN = 4
 const SAFETY_MARGIN = 1.2

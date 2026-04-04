@@ -1,4 +1,4 @@
-import type { Tool } from '../ollama.js'
+import type { Tool } from '../api.js'
 
 export interface ToolDefinition {
   /** The tool spec sent to the model */
