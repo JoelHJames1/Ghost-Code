@@ -39,6 +39,8 @@ import {
   type MemoryType,
 } from './autobiographical.js'
 import type { Message } from '../api.js'
+import { ensureEntity, addRelation } from '../knowledge/graph.js'
+import { assertBelief, type BeliefDomain } from '../knowledge/beliefs.js'
 
 // ── State ────────────────────────────────────────────────────────────────
 
@@ -146,6 +148,9 @@ export function endSession(conversation: Message[]): void {
       sharedHistory: analysis.sharedHistory,
     })
   }
+
+  // Extract knowledge graph entries from the conversation
+  extractKnowledge(conversation)
 
   // Bump version and save
   currentIdentity.version++
@@ -343,6 +348,87 @@ export function processInterjection(message: string): void {
       0.4,
       { personId: currentUserId || undefined },
     )
+  }
+}
+
+/**
+ * Extract entities and relations from a conversation into the knowledge graph.
+ * Heuristic-based: detects file paths, tools, projects, and commands.
+ */
+function extractKnowledge(messages: Message[]): void {
+  const filesEdited = new Set<string>()
+  const toolsUsed = new Set<string>()
+  let projectName = ''
+
+  for (const msg of messages) {
+    const content = typeof msg.content === 'string' ? msg.content : ''
+
+    // Extract project name from system prompt
+    if (msg.role === 'system' && content.includes('Project:')) {
+      const match = content.match(/Project:\s*(\S+)/)
+      if (match) projectName = match[1]!
+    }
+
+    // Extract files and tools from tool calls
+    if (msg.role === 'assistant' && msg.tool_calls) {
+      for (const tc of msg.tool_calls) {
+        toolsUsed.add(tc.function.name)
+        try {
+          const args = JSON.parse(tc.function.arguments || '{}')
+          if (args.file_path && (tc.function.name === 'Edit' || tc.function.name === 'Write')) {
+            filesEdited.add(args.file_path as string)
+          }
+        } catch {}
+      }
+    }
+  }
+
+  // Create project entity if we know the project name
+  if (projectName) {
+    ensureEntity(projectName, 'project')
+
+    // Link files to project
+    for (const file of filesEdited) {
+      const fileName = file.split('/').pop() || file
+      ensureEntity(fileName, 'file')
+      addRelation(fileName, 'file', projectName, 'project', 'part_of',
+        `${fileName} is part of ${projectName}`, 0.9, 'session')
+    }
+
+    // Link tools to project
+    for (const tool of toolsUsed) {
+      addRelation(projectName, 'project', tool, 'tool', 'uses',
+        `${projectName} session used ${tool}`, 0.7, 'session')
+    }
+
+    // Link user to project
+    if (currentUserId) {
+      ensureEntity(currentUserId, 'person')
+      addRelation(currentUserId, 'person', projectName, 'project', 'worked_on',
+        `${currentUserId} worked on ${projectName}`, 0.9, 'session')
+    }
+  }
+
+  // Assert technical beliefs from tool usage patterns
+  if (filesEdited.size > 0) {
+    const extensions = [...filesEdited].map(f => f.split('.').pop()).filter(Boolean)
+    const extCounts: Record<string, number> = {}
+    for (const ext of extensions) extCounts[ext!] = (extCounts[ext!] || 0) + 1
+
+    const mainExt = Object.entries(extCounts).sort((a, b) => b[1] - a[1])[0]
+    if (mainExt && mainExt[1] >= 2) {
+      const langMap: Record<string, string> = {
+        ts: 'TypeScript', js: 'JavaScript', py: 'Python', rs: 'Rust',
+        go: 'Go', java: 'Java', tsx: 'TypeScript React', jsx: 'JavaScript React',
+      }
+      const lang = langMap[mainExt[0]] || mainExt[0]
+      assertBelief(
+        `${projectName || 'This project'} primarily uses ${lang}`,
+        'project',
+        `Edited ${mainExt[1]} ${mainExt[0]} files in this session`,
+        'observation',
+      )
+    }
   }
 }
 

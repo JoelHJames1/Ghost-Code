@@ -35,6 +35,8 @@ import { logEvent, getEventLogStats, getRecentActivitySummary } from './eventlog
 import { initCapabilities, getActiveProfile, setConfirmCallback } from './capabilities.js'
 import { startSession, endSession, getCurrentIdentity, processInterjection } from './identity/bridge.js'
 import { getMemoryStats } from './identity/autobiographical.js'
+import { getGraphStats, searchGraph } from './knowledge/graph.js'
+import { getBeliefStats, searchBeliefs } from './knowledge/beliefs.js'
 import { getEpisodeStats, searchEpisodes } from './episodes.js'
 import { getBudgetStats } from './context-compiler.js'
 import { ensureAndStartServer, stopLlamaServer, registerCleanup } from './llama-server.js'
@@ -350,7 +352,7 @@ async function interactiveMode(serverConfig: ServerConfig) {
       const knownCommands = new Set(['/exit', '/quit', '/q', '/clear', '/vision', '/paste',
         '/tasks', '/tasks-clear', '/agents', '/agents-clear', '/scratchpad',
         '/checkpoint', '/resume', '/episodes', '/budget', '/eventlog',
-        '/identity', '/memories', '/security',
+        '/identity', '/memories', '/knowledge', '/beliefs', '/security',
         '/config', '/refresh', '/history', '/tokens', '/help', '/model'])
       if (knownCommands.has(cmd)) {
         // If processing, abort current work for /clear, /exit etc
@@ -681,6 +683,39 @@ function handleCommand(
       break
     }
 
+    case '/knowledge': {
+      const stats = getGraphStats()
+      infoMsg(`Knowledge graph: ${stats.entities} entities, ${stats.relations} relations`)
+      for (const [type, count] of Object.entries(stats.entityTypes)) {
+        infoMsg(`  ${type}: ${count}`)
+      }
+      if (arg) {
+        infoMsg(`\nSearching for: "${arg}"`)
+        const results = searchGraph(arg, 5)
+        for (const r of results) {
+          infoMsg(`  [${r.type}] ${r.name}: ${r.detail}`)
+        }
+      }
+      break
+    }
+
+    case '/beliefs': {
+      const stats = getBeliefStats()
+      infoMsg(`Beliefs: ${stats.active} active, ${stats.revised} revised, ${stats.abandoned} abandoned`)
+      infoMsg(`Avg confidence: ${(stats.avgConfidence * 100).toFixed(0)}%`)
+      for (const [domain, count] of Object.entries(stats.domains)) {
+        infoMsg(`  ${domain}: ${count}`)
+      }
+      if (arg) {
+        infoMsg(`\nSearching for: "${arg}"`)
+        const results = searchBeliefs(arg, 5)
+        for (const b of results) {
+          infoMsg(`  [${Math.round(b.confidence * 100)}%] ${b.statement}`)
+        }
+      }
+      break
+    }
+
     case '/security': {
       const profile = getActiveProfile()
       infoMsg(`Security profile: ${profile.name}`)
@@ -724,6 +759,8 @@ function handleCommand(
       infoMsg('  /tasks                    Show current task plan')
       infoMsg('  /identity                 Show AI identity and stats')
       infoMsg('  /memories                 Show autobiographical memories')
+      infoMsg('  /knowledge [query]        Show/search knowledge graph')
+      infoMsg('  /beliefs [query]          Show/search belief system')
       infoMsg('  /scratchpad               View agent notes')
       infoMsg('  /agents                   Show multi-agent status')
       infoMsg('  /checkpoint               Save conversation state')

@@ -25,6 +25,10 @@ import { formatScratchpadForPrompt } from './scratchpad.js'
 import { searchMemories } from './memory.js'
 import { searchEpisodes, formatEpisodesForContext } from './episodes.js'
 import { compressForContext } from './compression.js'
+import { formatKnowledgeForPrompt } from './knowledge/graph.js'
+import { searchBeliefs, formatBeliefsForPrompt } from './knowledge/beliefs.js'
+import { formatTemporalContext } from './knowledge/temporal.js'
+import { recallRelevantMemories, buildIdentityContext } from './identity/bridge.js'
 
 const CHARS_PER_TOKEN = 4
 
@@ -151,6 +155,36 @@ export function compileContext(
         memText += factsText
         memTokens += estimateTokens(factsText)
       }
+    }
+
+    // (c) Knowledge graph (entities and relations relevant to query)
+    const kgBudget = Math.floor((memBudget - memTokens) * 0.4)
+    if (kgBudget > 30) {
+      const kgText = formatKnowledgeForPrompt(currentQuery, kgBudget * CHARS_PER_TOKEN)
+      if (kgText) {
+        memText += kgText
+        memTokens += estimateTokens(kgText)
+      }
+    }
+
+    // (d) Relevant beliefs
+    const beliefBudget = Math.floor((memBudget - memTokens) * 0.5)
+    if (beliefBudget > 30) {
+      const beliefs = searchBeliefs(currentQuery, 3)
+      if (beliefs.length > 0) {
+        const beliefText = formatBeliefsForPrompt(beliefs, beliefBudget * CHARS_PER_TOKEN)
+        if (beliefText) {
+          memText += beliefText
+          memTokens += estimateTokens(beliefText)
+        }
+      }
+    }
+
+    // (e) Autobiographical memories relevant to this query
+    const autoMemText = recallRelevantMemories(currentQuery, 3)
+    if (autoMemText && memTokens + estimateTokens(autoMemText) <= memBudget) {
+      memText += autoMemText
+      memTokens += estimateTokens(autoMemText)
     }
 
     if (memText) {
