@@ -12,9 +12,11 @@ const SAFETY_MARGIN = 1.2
 
 /** Known context windows for common Ollama models (in tokens). */
 const MODEL_CONTEXT_WINDOWS: Record<string, number> = {
+  'gemma4:e4b': 262144,
+  'gemma4:e2b': 262144,
   'gemma4:31b': 131072,
   'gemma4:12b': 131072,
-  'gemma4': 131072,
+  'gemma4': 262144,
   'gemma3': 131072,
   'gemma2': 8192,
   'qwen3.5:0.8b': 32768,

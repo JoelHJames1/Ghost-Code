@@ -41,7 +41,7 @@ export interface GemmaConfig {
 }
 
 const DEFAULTS: GemmaConfig = {
-  model: 'gemma4:31b',
+  model: 'gemma4:e4b',
   baseUrl: 'http://127.0.0.1:8776',
   maxToolRounds: 30,
   projectInstructionsFile: '.gemma-code.md',
