@@ -15,10 +15,14 @@
 <br/>
 
 ```
-  ████████
- ██●█████▶   Qwen Code v1.0.0
-  ████████    Local-first agentic coding CLI
-    ·  ·  ·   Powered by Ollama qwen3.5:9b
+    ▄██████████▄
+   ████████████████
+   ███▓▓██████▓▓████
+   ███▓▓██████▓▓████     Qwen Code v1.0.0
+   ████████████████       Local-first agentic coding CLI
+   ████████████████       Powered by Ollama qwen3.5:9b
+   ████████████████
+   ██▀██▀▀██▀██▀██
 ```
 
 </div>
