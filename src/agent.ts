@@ -19,7 +19,7 @@ import {
   type ServerConfig,
 } from './api.js'
 import { resolveConfig } from './config.js'
-import { getToolSpecs, getTool, validateToolArgs } from './tools/index.js'
+import { getToolSpecs, getTool, getToolNames, validateToolArgs } from './tools/index.js'
 import { buildSystemPrompt, getEnvContext } from './context.js'
 import { classifyOllamaError, errorKindMessage } from './errors.js'
 import { pruneIfNeeded, estimateConversationTokens, getTokenBudget } from './context-window.js'
@@ -29,6 +29,7 @@ import { formatScratchpadForPrompt } from './scratchpad.js'
 import { saveCheckpoint } from './checkpoint.js'
 import { logEvent } from './eventlog.js'
 import { compileContext } from './context-compiler.js'
+import { repairToolCall } from './tool-repair.js'
 
 const MAX_TOOL_ROUNDS = 30 // Safety limit on consecutive tool-call rounds
 
@@ -277,21 +278,24 @@ async function executeToolCall(
   onToolStart?: (name: string, args: Record<string, unknown>) => void,
   onToolEnd?: (name: string, result: string) => void,
 ): Promise<boolean> {
-  const toolName = tc.function.name
-  let args: Record<string, unknown> = {}
+  // Repair pipeline: fix tool name and malformed JSON before failing
+  const { name: toolName, args, repaired } = repairToolCall(
+    tc.function.name,
+    tc.function.arguments || '{}',
+  )
 
-  try {
-    args = JSON.parse(tc.function.arguments || '{}')
-  } catch {
-    const result = `Error: Invalid JSON arguments for tool "${toolName}"`
-    conversation.push({ role: 'tool', content: result, tool_call_id: tc.id })
-    onToolEnd?.(toolName, result)
-    return true
+  if (repaired) {
+    logEvent('tool_call', 'system', {
+      tool: toolName,
+      originalName: tc.function.name,
+      repaired: true,
+      args: JSON.stringify(args).slice(0, 200),
+    })
   }
 
   const tool = getTool(toolName)
   if (!tool) {
-    const result = `Error: Unknown tool "${toolName}"`
+    const result = `Error: Unknown tool "${toolName}". Available: ${getToolNames().join(', ')}`
     conversation.push({ role: 'tool', content: result, tool_call_id: tc.id })
     onToolEnd?.(toolName, result)
     return true
