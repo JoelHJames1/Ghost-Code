@@ -292,9 +292,18 @@ async function interactiveMode(serverConfig: ServerConfig) {
       return
     }
 
+    // Slash commands: only if it matches a known command (not a file path)
     if (input.startsWith('/')) {
-      handleCommand(input, conversation, rl, serverConfig)
-      return
+      const cmd = input.split(' ')[0]!.toLowerCase()
+      const knownCommands = new Set(['/exit', '/quit', '/q', '/clear', '/vision', '/paste',
+        '/tasks', '/tasks-clear', '/agents', '/agents-clear', '/scratchpad',
+        '/checkpoint', '/resume', '/episodes', '/budget', '/eventlog',
+        '/config', '/refresh', '/history', '/tokens', '/help', '/model'])
+      if (knownCommands.has(cmd)) {
+        handleCommand(input, conversation, rl, serverConfig)
+        return
+      }
+      // Not a command — treat as regular input (likely a file path)
     }
 
     rl.pause()
