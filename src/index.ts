@@ -191,10 +191,27 @@ async function interactiveMode() {
     process.exit(0)
   })
 
-  // Handle Ctrl+C gracefully
+  // Ctrl+C: first press cancels current operation, second press exits
+  let lastSigint = 0
   rl.on('SIGINT', () => {
-    process.stderr.write('\n')
+    const now = Date.now()
+    if (now - lastSigint < 1500) {
+      // Double Ctrl+C — exit
+      process.stderr.write(DIM('\nGoodbye!\n'))
+      process.exit(0)
+    }
+    lastSigint = now
+    process.stderr.write(DIM('\n  (Press Ctrl+C again to exit)\n'))
     rl.prompt()
+  })
+
+  // Also catch process-level SIGINT for when readline doesn't have focus
+  process.on('SIGINT', () => {
+    const now = Date.now()
+    if (now - lastSigint < 1500) {
+      process.exit(0)
+    }
+    lastSigint = now
   })
 }
 
