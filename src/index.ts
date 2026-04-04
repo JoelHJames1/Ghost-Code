@@ -43,6 +43,7 @@ import { deepenRelationship } from './emotional/relationships.js'
 import { connectWhatsApp, disconnectWhatsApp, isWhatsAppConnected, getWhatsAppStatus } from './channels/whatsapp.js'
 import { scoreSessionSignificance, classifyExperience } from './emotional/significance.js'
 import { getSkillStats, getAllSkills } from './growth/skills.js'
+import { learnTopic } from './growth/learn.js'
 import { getGoalStats, getActiveGoals } from './growth/goals.js'
 import { getEpisodeStats, searchEpisodes } from './episodes.js'
 import { getBudgetStats } from './context-compiler.js'
@@ -361,7 +362,7 @@ async function interactiveMode(serverConfig: ServerConfig) {
         '/tasks', '/tasks-clear', '/agents', '/agents-clear', '/scratchpad',
         '/checkpoint', '/resume', '/episodes', '/budget', '/eventlog',
         '/identity', '/memories', '/knowledge', '/beliefs',
-        '/skills', '/goals', '/curiosity', '/whatsapp', '/security',
+        '/learn', '/skills', '/goals', '/curiosity', '/whatsapp', '/security',
         '/config', '/refresh', '/history', '/tokens', '/help', '/model'])
       if (knownCommands.has(cmd)) {
         // If processing, abort current work for /clear, /exit etc
@@ -708,6 +709,53 @@ function handleCommand(
       break
     }
 
+    case '/learn': {
+      if (!arg) {
+        infoMsg('Usage: /learn <topic> [--deep]')
+        infoMsg('Examples:')
+        infoMsg('  /learn React')
+        infoMsg('  /learn Rust ownership')
+        infoMsg('  /learn Docker --deep')
+        break
+      }
+
+      const isDeep = arg.includes('--deep')
+      const topic = arg.replace('--deep', '').trim()
+      const depth = isDeep ? 'deep' as const : 'normal' as const
+
+      infoMsg(`Entering learning mode: "${topic}" (${depth})...`)
+      infoMsg('Searching the web, reading docs, building knowledge...\n')
+
+      // Run learning asynchronously
+      ;(async () => {
+        try {
+          const result = await learnTopic(topic, (p) => {
+            infoMsg(`  [${p.phase}] ${p.detail}`)
+          }, depth)
+
+          infoMsg(`\nLearning complete!`)
+          infoMsg(`  Topic: ${result.topic}`)
+          infoMsg(`  Pages read: ${result.pagesRead}`)
+          infoMsg(`  Concepts learned: ${result.conceptsLearned.length}`)
+          infoMsg(`  Beliefs formed: ${result.beliefsFormed}`)
+          infoMsg(`  Time: ${(result.timeSpentMs / 1000).toFixed(1)}s`)
+
+          if (result.conceptsLearned.length > 0) {
+            infoMsg(`\n  Key concepts:`)
+            for (const c of result.conceptsLearned.slice(0, 8)) {
+              infoMsg(`    • ${c.slice(0, 100)}`)
+            }
+          }
+
+          infoMsg(`\nI now have knowledge about ${topic}. Try asking me to build something with it!`)
+        } catch (e: any) {
+          errorMsg(`Learning failed: ${e.message}`)
+        }
+        rl.prompt()
+      })()
+      return  // Don't prompt until learning is done
+    }
+
     case '/skills': {
       const stats = getSkillStats()
       infoMsg(`Skills: ${stats.total} tracked, ${stats.strengths} strong, ${stats.weaknesses} weak, ${stats.improving} improving`)
@@ -847,6 +895,7 @@ function handleCommand(
       infoMsg('  /beliefs [query]          Show/search belief system')
       infoMsg('  /skills                   Show skill levels and trends')
       infoMsg('  /goals                    Show persistent goals')
+      infoMsg('  /learn <topic>            Study a topic from the web')
       infoMsg('  /curiosity                Show knowledge gaps')
       infoMsg('  /scratchpad               View agent notes')
       infoMsg('  /agents                   Show multi-agent status')
