@@ -37,6 +37,9 @@ import { startSession, endSession, getCurrentIdentity, processInterjection } fro
 import { getMemoryStats } from './identity/autobiographical.js'
 import { getGraphStats, searchGraph } from './knowledge/graph.js'
 import { getBeliefStats, searchBeliefs } from './knowledge/beliefs.js'
+import { getCuriosityStats, getOpenQuestions } from './growth/curiosity.js'
+import { getSkillStats, getAllSkills } from './growth/skills.js'
+import { getGoalStats, getActiveGoals } from './growth/goals.js'
 import { getEpisodeStats, searchEpisodes } from './episodes.js'
 import { getBudgetStats } from './context-compiler.js'
 import { ensureAndStartServer, stopLlamaServer, registerCleanup } from './llama-server.js'
@@ -352,7 +355,8 @@ async function interactiveMode(serverConfig: ServerConfig) {
       const knownCommands = new Set(['/exit', '/quit', '/q', '/clear', '/vision', '/paste',
         '/tasks', '/tasks-clear', '/agents', '/agents-clear', '/scratchpad',
         '/checkpoint', '/resume', '/episodes', '/budget', '/eventlog',
-        '/identity', '/memories', '/knowledge', '/beliefs', '/security',
+        '/identity', '/memories', '/knowledge', '/beliefs',
+        '/skills', '/goals', '/curiosity', '/security',
         '/config', '/refresh', '/history', '/tokens', '/help', '/model'])
       if (knownCommands.has(cmd)) {
         // If processing, abort current work for /clear, /exit etc
@@ -683,6 +687,44 @@ function handleCommand(
       break
     }
 
+    case '/skills': {
+      const stats = getSkillStats()
+      infoMsg(`Skills: ${stats.total} tracked, ${stats.strengths} strong, ${stats.weaknesses} weak, ${stats.improving} improving`)
+      infoMsg(`Total practice: ${stats.totalPractice} records`)
+      const skills = getAllSkills()
+      for (const s of skills.slice(0, 10)) {
+        const trend = s.trend === 'improving' ? ' ↑' : s.trend === 'declining' ? ' ↓' : ''
+        infoMsg(`  ${s.domain}: ${Math.round(s.confidence * 100)}%${trend} (${s.totalSuccesses}W/${s.totalFailures}L)`)
+      }
+      break
+    }
+
+    case '/goals': {
+      const stats = getGoalStats()
+      infoMsg(`Goals: ${stats.active} active, ${stats.completed} completed, ${stats.evolved} evolved`)
+      if (stats.totalMilestones > 0) {
+        infoMsg(`Milestones: ${stats.achievedMilestones}/${stats.totalMilestones}`)
+      }
+      const active = getActiveGoals()
+      for (const g of active.slice(0, 5)) {
+        const achieved = g.milestones.filter(m => m.achieved).length
+        const total = g.milestones.length
+        infoMsg(`  [${Math.round(g.priority * 100)}%] ${g.description}${total > 0 ? ` [${achieved}/${total}]` : ''}`)
+      }
+      break
+    }
+
+    case '/curiosity': {
+      const stats = getCuriosityStats()
+      infoMsg(`Curiosity: ${stats.open} open questions, ${stats.answered} answered`)
+      if (stats.topQuestion) infoMsg(`Top question: ${stats.topQuestion}`)
+      const questions = getOpenQuestions(5)
+      for (const q of questions) {
+        infoMsg(`  [${Math.round(q.priority * 100)}%] ${q.question.slice(0, 100)}`)
+      }
+      break
+    }
+
     case '/knowledge': {
       const stats = getGraphStats()
       infoMsg(`Knowledge graph: ${stats.entities} entities, ${stats.relations} relations`)
@@ -761,6 +803,9 @@ function handleCommand(
       infoMsg('  /memories                 Show autobiographical memories')
       infoMsg('  /knowledge [query]        Show/search knowledge graph')
       infoMsg('  /beliefs [query]          Show/search belief system')
+      infoMsg('  /skills                   Show skill levels and trends')
+      infoMsg('  /goals                    Show persistent goals')
+      infoMsg('  /curiosity                Show knowledge gaps')
       infoMsg('  /scratchpad               View agent notes')
       infoMsg('  /agents                   Show multi-agent status')
       infoMsg('  /checkpoint               Save conversation state')

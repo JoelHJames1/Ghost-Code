@@ -41,6 +41,9 @@ import {
 import type { Message } from '../api.js'
 import { ensureEntity, addRelation } from '../knowledge/graph.js'
 import { assertBelief, type BeliefDomain } from '../knowledge/beliefs.js'
+import { detectKnowledgeGaps } from '../growth/curiosity.js'
+import { practiceSkill } from '../growth/skills.js'
+import { detectGoalsFromSession } from '../growth/goals.js'
 
 // ── State ────────────────────────────────────────────────────────────────
 
@@ -151,6 +154,20 @@ export function endSession(conversation: Message[]): void {
 
   // Extract knowledge graph entries from the conversation
   extractKnowledge(conversation)
+
+  // Growth: detect knowledge gaps (curiosity)
+  detectKnowledgeGaps(conversation)
+
+  // Growth: detect long-running goals from user messages
+  const userMsgs = conversation
+    .filter(m => m.role === 'user' && typeof m.content === 'string')
+    .map(m => m.content as string)
+  detectGoalsFromSession(userMsgs, undefined, currentUserId || undefined)
+
+  // Growth: update skills from tool usage
+  for (const skill of analysis.skills) {
+    practiceSkill(skill.domain, 'language', skill.success, skill.notes || 'session practice')
+  }
 
   // Bump version and save
   currentIdentity.version++
