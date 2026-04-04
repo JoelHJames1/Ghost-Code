@@ -4,10 +4,11 @@
 
 import { execSync } from 'child_process'
 import { readFileSync, existsSync } from 'fs'
-import { platform, release, userInfo } from 'os'
+import { platform, release, userInfo, totalmem, freemem, cpus } from 'os'
 import { basename, join } from 'path'
 import { resolveConfig } from './config.js'
 import { getRelevantMemories } from './memory.js'
+import { getModelContextWindow } from './context-window.js'
 
 export interface EnvContext {
   cwd: string
@@ -20,10 +21,21 @@ export interface EnvContext {
   shell: string
   user: string
   date: string
+  // Hardware awareness
+  totalMemoryGB: number
+  freeMemoryGB: number
+  cpuCores: number
+  cpuModel: string
+  // Model awareness
+  modelName: string
+  contextWindow: number
 }
 
 export function getEnvContext(): EnvContext {
   const cwd = process.cwd()
+  const config = resolveConfig()
+  const cpuInfo = cpus()
+
   const ctx: EnvContext = {
     cwd,
     projectName: basename(cwd),
@@ -33,6 +45,12 @@ export function getEnvContext(): EnvContext {
     shell: process.env.SHELL || '/bin/bash',
     user: userInfo().username,
     date: new Date().toISOString().split('T')[0]!,
+    totalMemoryGB: Math.round(totalmem() / 1073741824 * 10) / 10,
+    freeMemoryGB: Math.round(freemem() / 1073741824 * 10) / 10,
+    cpuCores: cpuInfo.length,
+    cpuModel: cpuInfo[0]?.model || 'unknown',
+    modelName: config.model,
+    contextWindow: getModelContextWindow(config.model),
   }
 
   try {
@@ -143,13 +161,20 @@ You help users with software engineering tasks: writing code, fixing bugs, refac
 - If something fails, read the error and diagnose before retrying
 - If a tool call fails, try a different approach rather than repeating the same call
 
+# System Resources & Constraints
+ - RAM: ${ctx.freeMemoryGB}GB free / ${ctx.totalMemoryGB}GB total
+ - CPU: ${ctx.cpuCores} cores (${ctx.cpuModel})
+ - Model: ${ctx.modelName} (context window: ${ctx.contextWindow.toLocaleString()} tokens)
+ - You are running locally via llama.cpp — all data stays on this machine
+ - Vision: You can analyze images sent by the user
+ - IMPORTANT: Be aware of memory constraints. ${ctx.freeMemoryGB < 8 ? 'RAM is LOW — avoid spawning many agents, keep tool results small, prefer targeted reads over full file reads.' : ctx.freeMemoryGB < 16 ? 'RAM is moderate — spawn at most 2-3 agents at a time.' : 'RAM is healthy — you can spawn multiple agents if needed.'}
+ - Your context window is ${ctx.contextWindow.toLocaleString()} tokens. Old messages are auto-compacted. Always use TaskTracker for tasks requiring >2 tool calls.
+
 # Environment
  - Working directory: ${ctx.cwd}
  - Project: ${ctx.projectName}${gitInfo}
  - Platform: ${ctx.osVersion}
  - Shell: ${ctx.shell}
  - User: ${ctx.user}
- - Date: ${ctx.date}
- - Model: Running locally via llama.cpp — all data stays on your machine
- - Vision: You can analyze images sent by the user${projectContext}${getRelevantMemories(ctx.projectName)}`
+ - Date: ${ctx.date}${projectContext}${getRelevantMemories(ctx.projectName)}`
 }
