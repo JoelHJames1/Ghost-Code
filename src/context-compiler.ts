@@ -23,6 +23,7 @@ import { buildSystemPrompt, getEnvContext } from './context.js'
 import { formatTaskListForPrompt, getTaskList, loadPersistedTasks } from './tasks.js'
 import { formatScratchpadForPrompt } from './scratchpad.js'
 import { searchMemories } from './memory.js'
+import { searchEpisodes, formatEpisodesForContext } from './episodes.js'
 
 const CHARS_PER_TOKEN = 4
 
@@ -112,24 +113,45 @@ export function compileContext(
     ? [{ role: 'system', content: pinnedText }]
     : []
 
-  // ── 3. Retrieved memories (priority 3) ─────────────────────────────
+  // ── 3. Retrieved memories + episodes (priority 3) ───────────────────
+  // Two-source hybrid retrieval:
+  //   a) Episode search with temporal contiguity (structured episodic memory)
+  //   b) Flat memory search (general facts and compaction summaries)
   const memBudget = Math.floor(totalBudget * budget.retrievedMemory)
   let memSlice: Message[] = []
 
   if (currentQuery) {
-    const results = searchMemories(currentQuery, 8)
-    if (results.length > 0) {
-      let memText = '## Relevant memories from past sessions\n'
-      let memTokens = estimateTokens(memText)
+    let memText = ''
+    let memTokens = 0
 
-      for (const r of results) {
-        const line = `- [${r.timestamp.split('T')[0]}] (relevance: ${r.score}) ${r.summary}\n`
-        const lineTokens = estimateTokens(line)
-        if (memTokens + lineTokens > memBudget) break
-        memText += line
-        memTokens += lineTokens
+    // (a) Episode retrieval with contiguity buffers
+    // Finds relevant episodes and pulls temporal neighbors for causal context
+    const episodes = searchEpisodes(currentQuery, 4, 1)
+    if (episodes.length > 0) {
+      const epText = formatEpisodesForContext(episodes, Math.floor(memBudget * CHARS_PER_TOKEN * 0.6))
+      memText += epText
+      memTokens += estimateTokens(epText)
+    }
+
+    // (b) Flat memory search (fills remaining budget)
+    const remainingBudget = memBudget - memTokens
+    if (remainingBudget > 50) {
+      const results = searchMemories(currentQuery, 5)
+      if (results.length > 0) {
+        memText += '## Relevant facts\n'
+        memTokens += estimateTokens('## Relevant facts\n')
+
+        for (const r of results) {
+          const line = `- [${r.timestamp.split('T')[0]}] ${r.summary}\n`
+          const lineTokens = estimateTokens(line)
+          if (memTokens + lineTokens > memBudget) break
+          memText += line
+          memTokens += lineTokens
+        }
       }
+    }
 
+    if (memText) {
       memSlice = [{ role: 'system', content: memText }]
     }
   }

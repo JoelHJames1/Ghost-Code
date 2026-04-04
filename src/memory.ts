@@ -23,6 +23,7 @@ import type { Message } from './api.js'
 import { estimateMessageTokens, estimateConversationTokens, getTokenBudget } from './context-window.js'
 import { search, type SearchDocument } from './vectorsearch.js'
 import { logEvent } from './eventlog.js'
+import { segmentAndStore } from './episodes.js'
 
 // ── Thresholds ───────────────────────────────────────────────────────────
 
@@ -339,10 +340,11 @@ export function smartCompact(messages: Message[], model: string): boolean {
 
   if (oldMessages.length === 0) return false
 
-  // Generate compact summary
-  const summary = compactMessages(oldMessages)
+  // Segment evicted messages into episodes (structured episodic memory)
+  const episodes = segmentAndStore(oldMessages)
 
-  // Save to persistent memory
+  // Also generate a flat summary for the general memory store
+  const summary = compactMessages(oldMessages)
   addMemory(summary)
 
   // Replace conversation in place

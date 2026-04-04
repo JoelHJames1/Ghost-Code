@@ -32,6 +32,7 @@ import { formatOrchestratorStatus, getOrchestratorState, clearOrchestrator } fro
 import { saveCheckpoint, loadLatestCheckpoint, listCheckpoints } from './checkpoint.js'
 import { readScratchpad, clearScratchpad } from './scratchpad.js'
 import { logEvent, getEventLogStats, getRecentActivitySummary } from './eventlog.js'
+import { getEpisodeStats, searchEpisodes } from './episodes.js'
 import { getBudgetStats } from './context-compiler.js'
 import { ensureAndStartServer, stopLlamaServer, registerCleanup } from './llama-server.js'
 import {
@@ -551,6 +552,21 @@ function handleCommand(
       break
     }
 
+    case '/episodes': {
+      const stats = getEpisodeStats()
+      infoMsg(`Episodes: ${stats.totalEpisodes} (${stats.totalMessages} messages segmented)`)
+      if (stats.oldestTimestamp) infoMsg(`  Oldest: ${stats.oldestTimestamp}`)
+      if (stats.newestTimestamp) infoMsg(`  Newest: ${stats.newestTimestamp}`)
+      if (arg) {
+        infoMsg(`\nSearching for: "${arg}"`)
+        const results = searchEpisodes(arg, 5, 1)
+        for (const ep of results) {
+          infoMsg(`  [${new Date(ep.timestamp).toISOString().split('T')[0]}] ${ep.summary.slice(0, 120)}`)
+        }
+      }
+      break
+    }
+
     case '/budget': {
       const stats = getBudgetStats(serverConfig.model, conversation.length)
       infoMsg(`Context budget: ${stats.totalBudget.toLocaleString()} tokens`)
@@ -608,6 +624,7 @@ function handleCommand(
       infoMsg('  /agents                   Show multi-agent status')
       infoMsg('  /checkpoint               Save conversation state')
       infoMsg('  /resume                   Resume from last checkpoint')
+      infoMsg('  /episodes [query]         Show/search episodic memory')
       infoMsg('  /budget                   Show context budget allocation')
       infoMsg('  /eventlog [recent]        Show event log stats')
       infoMsg('  /tokens                   Show context window usage')
