@@ -21,9 +21,14 @@
 
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs'
 import { join } from 'path'
-import type { Message } from './api.js'
+import type { Message, ServerConfig } from './api.js'
 import { tokenize } from './vectorsearch.js'
 import { search, type SearchDocument, type SearchResult } from './vectorsearch.js'
+import {
+  extractSurprisalFromResponse,
+  detectSurprisalBoundaries,
+  type SurprisalBoundary,
+} from './surprisal.js'
 
 // ── Types ────────────────────────────────────────────────────────────────
 
@@ -82,9 +87,12 @@ interface BoundarySignal {
 
 /**
  * Detect episode boundaries in a message sequence.
+ * Uses a hybrid approach:
+ *   1. Heuristic signals (topic shift, file switch, error spike, task transition)
+ *   2. Surprisal signals (if logprobs data is available on assistant messages)
  * Returns indices where episodes should be split.
  */
-function detectBoundaries(messages: Message[]): BoundarySignal[] {
+function detectBoundaries(messages: Message[], surprisalData?: Map<number, SurprisalBoundary[]>): BoundarySignal[] {
   const signals: BoundarySignal[] = []
 
   let lastRole = ''
@@ -177,6 +185,18 @@ function detectBoundaries(messages: Message[]): BoundarySignal[] {
       consecutiveToolCalls = 0
     } else {
       consecutiveToolCalls = 0
+    }
+
+    // Signal 6: Surprisal-based boundary (if logprobs available)
+    // High surprisal = unexpected content = likely topic/activity shift
+    if (surprisalData?.has(i)) {
+      for (const sb of surprisalData.get(i)!) {
+        signals.push({
+          position: sb.position,
+          reason: 'surprisal_spike',
+          strength: Math.min(0.9, 0.5 + sb.zScore * 0.1),
+        })
+      }
     }
 
     lastRole = msg.role
@@ -272,12 +292,19 @@ function buildEpisodeSummary(meta: ReturnType<typeof extractEpisodeMetadata>): s
  * Segment a conversation into episodes and store them.
  * Called during compaction — the messages being evicted are segmented
  * into episodes for later retrieval.
+ *
+ * @param surprisalData - Optional map of message index → surprisal boundaries.
+ *   If provided (from logprobs), used alongside heuristic signals for more
+ *   accurate boundary detection (EM-LLM approach).
  */
-export function segmentAndStore(messages: Message[]): Episode[] {
+export function segmentAndStore(
+  messages: Message[],
+  surprisalData?: Map<number, SurprisalBoundary[]>,
+): Episode[] {
   if (messages.length < 3) return []
 
   const store = loadEpisodes()
-  const boundaries = detectBoundaries(messages)
+  const boundaries = detectBoundaries(messages, surprisalData)
   const now = Date.now()
   const newEpisodes: Episode[] = []
 

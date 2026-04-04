@@ -32,6 +32,7 @@ import { formatOrchestratorStatus, getOrchestratorState, clearOrchestrator } fro
 import { saveCheckpoint, loadLatestCheckpoint, listCheckpoints } from './checkpoint.js'
 import { readScratchpad, clearScratchpad } from './scratchpad.js'
 import { logEvent, getEventLogStats, getRecentActivitySummary } from './eventlog.js'
+import { initCapabilities, getActiveProfile, setConfirmCallback } from './capabilities.js'
 import { getEpisodeStats, searchEpisodes } from './episodes.js'
 import { getBudgetStats } from './context-compiler.js'
 import { ensureAndStartServer, stopLlamaServer, registerCleanup } from './llama-server.js'
@@ -261,6 +262,9 @@ async function main() {
     process.exit(1)
   }
 
+  // Initialize capabilities for both modes
+  initCapabilities(process.cwd())
+
   if (printPrompt) {
     await printMode(printPrompt, serverConfig)
   } else {
@@ -294,6 +298,9 @@ async function printMode(prompt: string, serverConfig: ServerConfig) {
 // ── Interactive REPL ─────────────────────────────────────────────────────
 
 async function interactiveMode(serverConfig: ServerConfig) {
+  // Initialize capability gating with project root
+  initCapabilities(process.cwd())
+
   process.stderr.write(banner())
   logEvent('session_start', 'system', { model: appConfig.model, cwd: process.cwd() })
   infoMsg(`Backend: llama.cpp`)
@@ -617,6 +624,17 @@ function handleCommand(
       break
     }
 
+    case '/security': {
+      const profile = getActiveProfile()
+      infoMsg(`Security profile: ${profile.name}`)
+      infoMsg(`  ${profile.description}`)
+      infoMsg(`  Tools allowed: ${profile.toolCount}`)
+      infoMsg(`  Project root: ${process.cwd()}`)
+      infoMsg(`  Blocked: curl|sh, eval, disk writes, mkfs, dd`)
+      infoMsg(`  Confirm: rm -rf, force push, hard reset, chmod 777`)
+      break
+    }
+
     case '/config': {
       infoMsg('Resolved configuration:')
       process.stderr.write(DIM(formatConfig(appConfig)) + '\n')
@@ -654,6 +672,7 @@ function handleCommand(
       infoMsg('  /episodes [query]         Show/search episodic memory')
       infoMsg('  /budget                   Show context budget allocation')
       infoMsg('  /eventlog [recent]        Show event log stats')
+      infoMsg('  /security                 Show security policy')
       infoMsg('  /tokens                   Show context window usage')
       infoMsg('  /config                   Show configuration')
       infoMsg('  /refresh                  Refresh system prompt')

@@ -30,6 +30,7 @@ import { saveCheckpoint } from './checkpoint.js'
 import { logEvent } from './eventlog.js'
 import { compileContext } from './context-compiler.js'
 import { repairToolCall } from './tool-repair.js'
+import { enforceCapability } from './capabilities.js'
 
 const MAX_TOOL_ROUNDS = 30 // Safety limit on consecutive tool-call rounds
 
@@ -316,6 +317,16 @@ async function executeToolCall(
   if (validationError) {
     conversation.push({ role: 'tool', content: validationError, tool_call_id: tc.id })
     onToolEnd?.(toolName, validationError)
+    return true
+  }
+
+  // Capability gating: check if this tool call is allowed by security policy
+  const capCheck = await enforceCapability(toolName, args)
+  if (!capCheck.proceed) {
+    const result = `BLOCKED by security policy: ${capCheck.reason}`
+    conversation.push({ role: 'tool', content: result, tool_call_id: tc.id })
+    logEvent('error', 'security', { tool: toolName, reason: capCheck.reason })
+    onToolEnd?.(toolName, result)
     return true
   }
 
