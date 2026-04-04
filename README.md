@@ -1,6 +1,26 @@
 <div align="center">
 
-# Qwen Code
+```
+
+                  ██████████████████████
+              ██████████████████████████████
+            ██████████████████████████████████
+          ██████████████████████████████████████
+          ██████████████████████████████████████
+          ████████▓▓▓▓████████████▓▓▓▓████████
+          ████████▓▓▓▓████████████▓▓▓▓████████
+          ████████░░▓▓████████████░░▓▓████████
+          ████████░░▓▓████████████░░▓▓████████
+          ██████████████████████████████████████
+          ██████████████████████████████████████
+          ██████████████████████████████████████
+          ██████████████████████████████████████
+          ██████████████████████████████████████
+          ████▀▀██████▀▀████▀▀██████▀▀████████
+
+```
+
+# 👻 Qwen Code
 
 ### The Local-First Agentic Coding CLI
 
@@ -9,21 +29,8 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-1.3K_lines-3178C6?logo=typescript&logoColor=white)](#architecture)
 [![Bun](https://img.shields.io/badge/Runtime-Bun-f472b6?logo=bun&logoColor=white)](#quick-start)
 [![Ollama](https://img.shields.io/badge/LLM-Ollama-000000?logo=ollama&logoColor=white)](#quick-start)
-[![Qwen 3.5](https://img.shields.io/badge/Model-Qwen_3.5_9B-7C3AED)](#model-support)
+[![Qwen 3.5](https://img.shields.io/badge/Model-Qwen_3.5-7C3AED)](#model-support)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-
-<br/>
-
-```
-    ▄██████████▄
-   ████████████████
-   ███▓▓██████▓▓████
-   ███▓▓██████▓▓████     Qwen Code v1.0.0
-   ████████████████       Local-first agentic coding CLI
-   ████████████████       Powered by Ollama qwen3.5:9b
-   ████████████████
-   ██▀██▀▀██▀██▀██
-```
 
 </div>
 
@@ -324,7 +331,12 @@ MIT
 
 <div align="center">
 
-**Qwen Code — Your code. Your machine. Your agent.**
+```
+    ████▀▀██████▀▀████▀▀██████▀▀████
+      ·  ·  ·  ·  ·  ·  ·  ·  ·  ·
+```
+
+**👻 Qwen Code — Your code. Your machine. Your agent.**
 
 *Powered by Ollama. No cloud required.*
 
