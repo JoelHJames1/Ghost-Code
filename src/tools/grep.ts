@@ -67,13 +67,16 @@ export const GrepTool: ToolDefinition = {
           encoding: 'utf-8',
           timeout: 15000,
           maxBuffer: 1024 * 1024 * 5,
+          stdio: ['pipe', 'pipe', 'pipe'],  // Suppress stderr bleeding into terminal
         }).trim()
 
         if (!output) return 'No matches found.'
         return output
       } catch (e: any) {
+        // grep/rg return status 1 for "no matches" — that's not an error
         if (e.status === 1) return 'No matches found.'
-        if (tool === 'rg') continue // Try grep if rg not found
+        // If rg failed (not installed, etc.), fall through to grep
+        if (tool === 'rg') continue
         return `Error searching: ${e.message}`
       }
     }

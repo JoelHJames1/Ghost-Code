@@ -124,6 +124,11 @@ function buildArgs(config: LlamaServerConfig): string[] {
   if (config.jinja) args.push('--jinja')
   if (config.flashAttn) args.push('-fa', 'on')
 
+  // Performance: cache prompts to avoid reprocessing shared prefixes
+  args.push('--cache-prompt')
+  // Skip warmup — saves ~2s on startup
+  args.push('--no-warmup')
+
   args.push(...config.extraArgs)
 
   return args
@@ -208,12 +213,16 @@ export async function startLlamaServer(
     detached: false,
   })
 
-  // Pipe server logs
+  // Pipe server logs during startup only — suppress after ready
+  let serverReady = false
+
   serverProcess.stdout?.on('data', (data: Buffer) => {
+    if (serverReady) return  // Suppress verbose logs after startup
     const lines = data.toString().split('\n').filter(Boolean)
     for (const line of lines) onLog?.(line)
   })
   serverProcess.stderr?.on('data', (data: Buffer) => {
+    if (serverReady) return  // Suppress verbose logs after startup
     const lines = data.toString().split('\n').filter(Boolean)
     for (const line of lines) onLog?.(line)
   })
@@ -242,6 +251,7 @@ export async function startLlamaServer(
     )
   }
 
+  serverReady = true  // Stop piping server logs to the terminal
   serverBaseUrl = baseUrl
   onLog?.(`llama-server ready at ${baseUrl}`)
   return baseUrl
