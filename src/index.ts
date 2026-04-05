@@ -59,6 +59,7 @@ import {
   infoMsg,
   spinner,
   DIM,
+  formatMarkdown,
 } from './ui/display.js'
 
 // ── CLI argument parsing ─────────────────────────────────────────────────
@@ -308,7 +309,7 @@ async function printMode(prompt: string, serverConfig: ServerConfig) {
     ? await runAgentWithImage(conversation, text, imagePath, agentOpts)
     : await runAgent(conversation, text, agentOpts)
 
-  process.stdout.write(result + '\n')
+  process.stdout.write(formatMarkdown(result) + '\n')
   stopLlamaServer()
 }
 
@@ -422,6 +423,7 @@ async function interactiveMode(serverConfig: ServerConfig) {
     let spin = spinner()
     try {
       let firstChunk = true
+      let responseBuffer = ''
 
       const agentOpts = {
         stream: true,
@@ -436,7 +438,8 @@ async function interactiveMode(serverConfig: ServerConfig) {
         onText: (text: string) => {
           if (currentAbort?.signal.aborted) return
           if (firstChunk) { spin.stop(); firstChunk = false }
-          process.stdout.write(text)
+          // Collect chunks — we format the full response at the end
+          responseBuffer += text
         },
         onToolStart: (name: string, args: Record<string, unknown>) => {
           if (currentAbort?.signal.aborted) return
@@ -459,6 +462,10 @@ async function interactiveMode(serverConfig: ServerConfig) {
       }
 
       if (!currentAbort.signal.aborted) {
+        // Format and display the collected response
+        if (responseBuffer.trim()) {
+          process.stdout.write(formatMarkdown(responseBuffer))
+        }
         process.stdout.write('\n\n')
       }
     } catch (e: any) {

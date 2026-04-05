@@ -99,4 +99,75 @@ export function infoMsg(msg: string): void {
   process.stderr.write(DIM(`  ${msg}\n`))
 }
 
+// ── Markdown rendering for terminal ─────────────────────────────────────
+
+/**
+ * Render markdown-ish text for nice terminal output.
+ * Handles: headings, bold, inline code, code blocks, bullets, numbered lists.
+ */
+export function formatMarkdown(text: string): string {
+  const lines = text.split('\n')
+  let inCodeBlock = false
+  const result: string[] = []
+
+  for (const line of lines) {
+    // Code block toggle
+    if (line.trim().startsWith('```')) {
+      inCodeBlock = !inCodeBlock
+      if (inCodeBlock) {
+        const lang = line.trim().slice(3).trim()
+        result.push(DIM(lang ? `  ┌─ ${lang} ─` : '  ┌──'))
+      } else {
+        result.push(DIM('  └──'))
+      }
+      continue
+    }
+
+    // Inside code block — dim, indented
+    if (inCodeBlock) {
+      result.push(DIM('  │ ') + chalk.cyan(line))
+      continue
+    }
+
+    let formatted = line
+
+    // Headings
+    if (/^#{1,3}\s/.test(formatted)) {
+      const level = (formatted.match(/^(#+)/))?.[1]?.length || 1
+      const heading = formatted.replace(/^#+\s*/, '')
+      if (level === 1) {
+        result.push('\n' + BOLD(chalk.hex('#4285F4')(heading)))
+      } else if (level === 2) {
+        result.push('\n' + BOLD(heading))
+      } else {
+        result.push(BOLD(heading))
+      }
+      continue
+    }
+
+    // Bullet points — add color to the bullet
+    if (/^\s*[-*•]\s/.test(formatted)) {
+      formatted = formatted.replace(/^(\s*)([-*•])(\s)/, '$1' + chalk.hex('#4285F4')('•') + '$3')
+    }
+
+    // Numbered lists — color the number
+    if (/^\s*\d+[.)]\s/.test(formatted)) {
+      formatted = formatted.replace(/^(\s*)(\d+[.)])(\s)/, '$1' + chalk.hex('#4285F4')('$2') + '$3')
+    }
+
+    // Inline code: `code` → cyan
+    formatted = formatted.replace(/`([^`]+)`/g, (_, code) => chalk.cyan(code))
+
+    // Bold: **text** → bold
+    formatted = formatted.replace(/\*\*([^*]+)\*\*/g, (_, text) => BOLD(text))
+
+    // Italic: *text* → dim (after bold is handled)
+    formatted = formatted.replace(/\*([^*]+)\*/g, (_, text) => chalk.italic(text))
+
+    result.push(formatted)
+  }
+
+  return result.join('\n')
+}
+
 export { GHOST_BLUE, DIM, BOLD }
