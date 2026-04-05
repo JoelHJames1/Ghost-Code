@@ -52,6 +52,16 @@ export function toolCallHeader(name: string, args: Record<string, unknown>): voi
   const summary = formatToolArgs(name, args)
 
   process.stderr.write(`\n  ${icon} ${colorFn(name)}${summary ? ' ' + DIM(summary) : ''}\n`)
+
+  // Show edit diff preview in the header
+  if (name === 'Edit' && args.old_string && args.new_string) {
+    const oldStr = (args.old_string as string).split('\n')[0]?.slice(0, 80) || ''
+    const newStr = (args.new_string as string).split('\n')[0]?.slice(0, 80) || ''
+    if (oldStr !== newStr) {
+      process.stderr.write(chalk.red(`  - ${oldStr}\n`))
+      process.stderr.write(chalk.green(`  + ${newStr}\n`))
+    }
+  }
 }
 
 export function toolCallResult(name: string, result: string): void {
@@ -139,17 +149,37 @@ export function toolCallResult(name: string, result: string): void {
     }
 
     case 'TaskTracker': {
-      // Show task updates with color
-      for (const line of lines.slice(0, 6)) {
-        if (line.includes('✓') || line.includes('completed') || line.includes('created')) {
-          process.stderr.write('  ' + chalk.green(line.trim().slice(0, 100)) + '\n')
-        } else if (line.includes('#') || line.includes('Task')) {
-          process.stderr.write('  ' + chalk.white(line.trim().slice(0, 100)) + '\n')
-        } else if (line.trim()) {
-          process.stderr.write('  ' + DIM(line.trim().slice(0, 100)) + '\n')
+      // Parse and show task checklist with progress
+      let completed = 0, total = 0, currentTask = ''
+      for (const line of lines) {
+        const t = line.trim()
+        if (t.startsWith('[x]') || t.includes('✓') || t.includes('done') || t.includes('completed')) completed++
+        if (t.match(/^\[[ x]\]\s*\d+\./)) total++
+        if (t.includes('in_progress') || t.includes('→')) currentTask = t.replace(/.*\d+\.\s*/, '').slice(0, 60)
+      }
+
+      if (total > 0) {
+        const pct = Math.round((completed / total) * 100)
+        const barFull = Math.round(completed / total * 20)
+        const bar = chalk.green('█'.repeat(barFull)) + DIM('░'.repeat(20 - barFull))
+        process.stderr.write(`  ${bar} ${chalk.white(`${completed}/${total}`)} ${DIM(`(${pct}%)`)}\n`)
+      }
+
+      for (const line of lines) {
+        const t = line.trim()
+        if (!t) continue
+        if (t.startsWith('[x]') || t.includes('✓')) {
+          process.stderr.write('  ' + chalk.green('✅ ' + t.replace(/^\[x\]\s*\d+\.\s*/, '').replace(/✓\s*/, '').slice(0, 80)) + '\n')
+        } else if (t.startsWith('[ ]')) {
+          if (t.includes('in_progress') || t.includes('→')) {
+            process.stderr.write('  ' + chalk.yellow('⏳ ' + t.replace(/^\[ \]\s*\d+\.\s*/, '').slice(0, 80)) + '\n')
+          } else {
+            process.stderr.write('  ' + DIM('○ ' + t.replace(/^\[ \]\s*\d+\.\s*/, '').slice(0, 80)) + '\n')
+          }
+        } else if (t.includes('created') || t.includes('plan')) {
+          process.stderr.write('  ' + chalk.cyan(t.slice(0, 100)) + '\n')
         }
       }
-      if (lines.length > 6) process.stderr.write(DIM(`  ... ${lines.length - 6} more lines\n`))
       break
     }
 
@@ -217,18 +247,20 @@ function truncStr(s: string | undefined, max: number): string {
   return s.length > max ? s.slice(0, max - 3) + '...' : s
 }
 
-export function spinner(): { stop: () => void } {
+export function spinner(): { stop: () => void; update: (text: string) => void } {
   const frames = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏']
   let i = 0
+  let currentText = 'thinking...'
   const interval = setInterval(() => {
-    process.stderr.write(`\r${GHOST_BLUE(frames[i % frames.length]!)} ${DIM('thinking...')}`)
+    process.stderr.write(`\r${GHOST_BLUE(frames[i % frames.length]!)} ${DIM(currentText)}${'  '}`)
     i++
   }, 80)
 
   return {
+    update(text: string) { currentText = text },
     stop() {
       clearInterval(interval)
-      process.stderr.write('\r' + ' '.repeat(30) + '\r')
+      process.stderr.write('\r' + ' '.repeat(60) + '\r')
     },
   }
 }

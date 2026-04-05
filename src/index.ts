@@ -463,6 +463,9 @@ async function interactiveMode(serverConfig: ServerConfig) {
         onToolEnd: (name: string, result: string) => {
           if (currentAbort?.signal.aborted) return
           toolCallResult(name, result)
+          // Resume spinner with context about what's next
+          spin = spinner()
+          spin.update('thinking about next step...')
         },
       }
 
@@ -475,6 +478,7 @@ async function interactiveMode(serverConfig: ServerConfig) {
         await runAgent(conversation, input, agentOpts)
       }
 
+      spin.stop()
       if (!currentAbort.signal.aborted) {
         renderer.flush()
         process.stdout.write('\n\n')
