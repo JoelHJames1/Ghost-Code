@@ -87,6 +87,7 @@ const CODING_PROFILE: CapabilityProfile = {
     SpawnAgent: { level: 'allow' },
     WebSearch: { level: 'allow' },
     WebFetch: { level: 'allow' },
+    Browser: { level: 'allow' },
   },
   allowedPaths: [], // Empty = use CWD as root (set at runtime)
   dangerousCommands: [],

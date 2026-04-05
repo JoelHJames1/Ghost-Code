@@ -37,12 +37,12 @@ export function banner(): string {
 const TOOL_ICONS: Record<string, string> = {
   Read: '📖', Write: '✏️', Edit: '🔧', Bash: '⚡', Glob: '🔍',
   Grep: '🔎', TaskTracker: '📋', Scratchpad: '📝', SpawnAgent: '🤖',
-  WebSearch: '🌐', WebFetch: '🌐',
+  WebSearch: '🌐', WebFetch: '🌐', Browser: '👁️',
 }
 
 const TOOL_COLORS: Record<string, (s: string) => string> = {
   Read: chalk.cyan, Write: chalk.green, Edit: chalk.yellow,
-  Bash: chalk.magenta, Glob: chalk.blue, Grep: chalk.blue,
+  Bash: chalk.magenta, Glob: chalk.blue, Grep: chalk.blue, Browser: chalk.hex('#FF6B6B'),
   TaskTracker: chalk.white, WebSearch: chalk.cyan, WebFetch: chalk.cyan,
 }
 
@@ -168,8 +168,22 @@ export function toolCallResult(name: string, result: string): void {
       break
     }
 
+    case 'Browser': {
+      for (const line of lines) {
+        const t = line.trim()
+        if (!t) continue
+        if (t.startsWith('✅')) process.stderr.write('  ' + chalk.green(t.slice(0, 120)) + '\n')
+        else if (t.startsWith('❌') || t.startsWith('✗')) process.stderr.write('  ' + chalk.red(t.slice(0, 120)) + '\n')
+        else if (t.startsWith('⚠')) process.stderr.write('  ' + chalk.yellow(t.slice(0, 120)) + '\n')
+        else if (t.startsWith('🔴') || t.startsWith('🟠')) process.stderr.write('  ' + chalk.red(t.slice(0, 120)) + '\n')
+        else if (t.startsWith('📸')) process.stderr.write('  ' + chalk.cyan(t.slice(0, 120)) + '\n')
+        else if (t.startsWith('📐')) process.stderr.write('  ' + DIM(t.slice(0, 120)) + '\n')
+        else process.stderr.write('  ' + DIM(t.slice(0, 120)) + '\n')
+      }
+      break
+    }
+
     default: {
-      // Generic: show first few lines
       const preview = lines.slice(0, 4)
       for (const line of preview) {
         if (line.trim()) process.stderr.write('  ' + DIM(line.trim().slice(0, 100)) + '\n')

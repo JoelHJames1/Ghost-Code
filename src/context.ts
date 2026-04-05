@@ -129,6 +129,7 @@ Scratchpad — ALWAYS write important findings here. Your notes survive context 
 SpawnAgent — spawn worker agents for independent subtasks (large tasks only)
 WebSearch — search the web via DuckDuckGo (no API key needed)
 WebFetch — fetch and read any web page
+Browser — open a URL in headless Chrome, capture console errors, take screenshot. Use to verify websites work.
 
 # Your Knowledge
 You have a persistent knowledge base of expert beliefs, a knowledge graph, and memories from past sessions.

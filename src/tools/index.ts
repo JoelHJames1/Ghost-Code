@@ -10,11 +10,12 @@ import { TaskTrackerTool } from './tasks.js'
 import { SpawnAgentTool } from './agents.js'
 import { ScratchpadTool } from './scratchpad.js'
 import { WebSearchTool, WebFetchTool } from './web.js'
+import { BrowserTool } from './browser.js'
 
 const TOOL_MAP: Map<string, ToolDefinition> = new Map()
 
 // Register all tools
-for (const tool of [ReadTool, WriteTool, EditTool, BashTool, GlobTool, GrepTool, TaskTrackerTool, SpawnAgentTool, ScratchpadTool, WebSearchTool, WebFetchTool]) {
+for (const tool of [ReadTool, WriteTool, EditTool, BashTool, GlobTool, GrepTool, TaskTrackerTool, SpawnAgentTool, ScratchpadTool, WebSearchTool, WebFetchTool, BrowserTool]) {
   TOOL_MAP.set(tool.spec.function.name, tool)
 }
 
