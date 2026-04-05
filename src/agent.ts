@@ -254,7 +254,7 @@ export async function runAgent(
       let roundHadFailure = false
 
       for (const tc of msg.tool_calls) {
-        const failed = await executeToolCall(conversation, tc, onToolStart, onToolEnd)
+        const failed = await executeToolCall(conversation, tc, onToolStart, onToolEnd, onMemoryEvent)
         if (failed) {
           roundHadFailure = true
           if (tc.function.name === lastFailedTool) {
@@ -369,7 +369,7 @@ export async function runAgentWithImage(
     if (msg.tool_calls && msg.tool_calls.length > 0) {
       conversation.push(msg)
       for (const tc of msg.tool_calls) {
-        await executeToolCall(conversation, tc, onToolStart, onToolEnd)
+        await executeToolCall(conversation, tc, onToolStart, onToolEnd, onMemoryEvent)
       }
       continue
     }
@@ -405,6 +405,7 @@ async function executeToolCall(
   tc: ToolCall,
   onToolStart?: (name: string, args: Record<string, unknown>) => void,
   onToolEnd?: (name: string, result: string) => void,
+  onMemoryEvent?: (event: string) => void,
 ): Promise<boolean> {
   // Repair pipeline: fix tool name and malformed JSON before failing
   const { name: toolName, args, repaired } = repairToolCall(
@@ -462,13 +463,24 @@ async function executeToolCall(
 
     if (isError) {
       // Record this error and check for known solutions
+      onMemoryEvent?.('🔍 Checking error database...')
       const context = `${toolName}(${JSON.stringify(args).slice(0, 200)})`
       const errorId = recordError(truncated.slice(0, 500), toolName, context)
       const knownFix = lookupError(truncated, toolName)
 
       let content = truncated
       if (knownFix) {
+        onMemoryEvent?.(`💡 Found known fix (${Math.round(knownFix.confidence * 100)}% confidence)`)
         content += `\n\n💡 Known fix (${Math.round(knownFix.confidence * 100)}% confidence): ${knownFix.solution}`
+      } else {
+        // Search beliefs for related knowledge about this error
+        const { searchBeliefs } = await import('./knowledge/beliefs.js')
+        const errorBeliefs = searchBeliefs(truncated.slice(0, 200), 3)
+        if (errorBeliefs.length > 0) {
+          onMemoryEvent?.(`🧠 Found ${errorBeliefs.length} related beliefs`)
+          const hints = errorBeliefs.map(b => b.statement.slice(0, 150)).join('\n- ')
+          content += `\n\n🧠 Related knowledge from memory:\n- ${hints}`
+        }
       }
 
       conversation.push({ role: 'tool', content, tool_call_id: tc.id })

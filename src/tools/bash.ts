@@ -32,11 +32,11 @@ export const BashTool: ToolDefinition = {
     let command = args.command as string
     const timeout = Math.min((args.timeout as number) || 30000, 300000)
 
-    // Auto-fix: quote unquoted paths with spaces in cd commands
-    command = command.replace(/cd\s+(\/[^"'&|;]+?\s[^"'&|;]*?)(\s*&&|\s*$)/g, (_, path, rest) => {
-      // Don't re-quote if already quoted
-      if (path.startsWith('"') || path.startsWith("'")) return _
-      return `cd "${path.trim()}"${rest}`
+    // Auto-fix: quote unquoted paths with spaces in common commands
+    // Matches: cd /path/with spaces, ls /path/with spaces, cat /path/with spaces, etc.
+    command = command.replace(/((?:cd|ls|cat|rm|cp|mv|mkdir|chmod|chown|find|head|tail|wc|file|stat)\s+(?:-[a-zA-Z]+\s+)*)(\/[^"'&|;>]+?\s[^"'&|;>]*?)(\s*(?:&&|\|\||;|>|\||$))/g, (match, prefix, path, rest) => {
+      if (path.includes('"') || path.includes("'")) return match
+      return `${prefix}"${path.trim()}"${rest}`
     })
 
     try {
