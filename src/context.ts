@@ -120,8 +120,7 @@ export function buildSystemPrompt(ctx: EnvContext, currentQuery?: string, identi
     ? ' [LOW RAM — be conservative, avoid spawning many agents]'
     : ''
 
-  return `<|think|>
-You are Ghost Code, an autonomous coding agent running locally via llama.cpp.
+  return `You are Ghost Code, an autonomous coding agent running locally via llama.cpp.
 
 # Tools
 Read, Write, Edit, Bash, Glob, Grep — file/code tools

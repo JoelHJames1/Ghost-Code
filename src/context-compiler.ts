@@ -216,15 +216,25 @@ export function compileContext(
 
   // ── 5. Recovery instructions (priority 5 — smallest) ───────────────
   const recoveryText = 'Stay focused on the Original Goal. Update tasks as you complete them. Write findings to Scratchpad.'
-  const recoverySlice: Message[] = [{ role: 'system', content: recoveryText }]
 
   // ── Assemble final context ─────────────────────────────────────────
+  // IMPORTANT: Some models (Qwen) require all system messages at the start.
+  // Merge everything system-role into a single system message to avoid template errors.
+  const systemContent = [
+    systemSlice[0]?.content || '',
+    ...memSlice.filter(m => m.role === 'system').map(m => m.content),
+    ...pinnedSlice.filter(m => m.role === 'system').map(m => m.content),
+    recoveryText,
+  ].filter(Boolean).join('\n\n')
+
+  const nonSystemMem = memSlice.filter(m => m.role !== 'system')
+  const nonSystemPinned = pinnedSlice.filter(m => m.role !== 'system')
+
   const compiled: Message[] = [
-    ...systemSlice,       // System prompt first
-    ...memSlice,          // Retrieved memories
-    ...convSlice,         // Conversation window
-    ...pinnedSlice,       // Pinned state (near end for high attention)
-    ...recoverySlice,     // Recovery instructions (last)
+    { role: 'system', content: systemContent },  // Single system message first
+    ...nonSystemMem,       // Any non-system retrieved memories
+    ...convSlice,          // Conversation window
+    ...nonSystemPinned,    // Any non-system pinned state
   ]
 
   return compiled

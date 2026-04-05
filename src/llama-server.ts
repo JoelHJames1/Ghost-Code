@@ -213,18 +213,52 @@ export async function startLlamaServer(
     detached: false,
   })
 
-  // Pipe server logs during startup only — suppress after ready
+  // Pipe server logs during startup — show download progress, suppress noise after ready
   let serverReady = false
+  let downloadStarted = false
+
+  function processStartupLine(line: string) {
+    if (serverReady) return
+
+    // Detect model download progress from llama.cpp output
+    const downloadMatch = line.match(/(\d+)%\s/)
+    if (downloadMatch || line.includes('download') || line.includes('Downloading')) {
+      if (!downloadStarted) {
+        downloadStarted = true
+        onLog?.('  🧠 Downloading intelligence model...')
+      }
+      if (downloadMatch) {
+        const pct = parseInt(downloadMatch[1]!, 10)
+        const bar = '█'.repeat(Math.floor(pct / 5)) + '░'.repeat(20 - Math.floor(pct / 5))
+        process.stderr.write(`\r  ${bar} ${pct}%`)
+        if (pct >= 100) process.stderr.write('\n')
+      }
+      return
+    }
+
+    // Show key milestones, suppress verbose noise
+    if (line.includes('model loaded')) {
+      if (downloadStarted) process.stderr.write('\n')
+      onLog?.('  🧠 Model loaded into memory')
+    } else if (line.includes('server is listening')) {
+      onLog?.(line)
+    } else if (line.includes('loading model')) {
+      onLog?.(line)
+    } else if (line.includes('load_tensors')) {
+      onLog?.('  ⏳ Loading model tensors...')
+    } else if (line.includes('error') || line.includes('Error') || line.includes('failed')) {
+      onLog?.(line)
+    }
+    // Suppress everything else (ggml init, metal init, cache info, etc.)
+  }
 
   serverProcess.stdout?.on('data', (data: Buffer) => {
-    if (serverReady) return  // Suppress verbose logs after startup
     const lines = data.toString().split('\n').filter(Boolean)
-    for (const line of lines) onLog?.(line)
+    for (const line of lines) processStartupLine(line)
   })
   serverProcess.stderr?.on('data', (data: Buffer) => {
-    if (serverReady) return  // Suppress verbose logs after startup
     const lines = data.toString().split('\n').filter(Boolean)
-    for (const line of lines) onLog?.(line)
+    for (const line of lines) processStartupLine(line)
   })
 
   serverProcess.on('error', (err) => {
