@@ -99,19 +99,86 @@ export async function learnTopic(
   achieveMilestone(goal.id, 'Search fundamentals')
   updateGoalProgress(goal.id, `Searched ${searchQueries.length} queries, found ${allUrls.length} pages`)
 
-  // ── Phase 2: Read top pages ───────────────────────────────────────
-  onProgress?.({ phase: 'Reading', detail: `Reading ${Math.min(allUrls.length, depth === 'deep' ? 5 : 3)} pages...` })
+  // ── Phase 2: Read pages + follow internal links for depth ──────
+  const maxTopPages = depth === 'deep' ? 8 : depth === 'normal' ? 5 : 3
+  const maxSubPages = depth === 'deep' ? 15 : depth === 'normal' ? 8 : 3
+  const maxCharsPerPage = depth === 'deep' ? 15000 : depth === 'normal' ? 10000 : 5000
 
-  const pagesToRead = allUrls
-    .filter(u => !u.includes('duckduckgo.com'))
-    .slice(0, depth === 'deep' ? 5 : depth === 'normal' ? 3 : 2)
+  // Deduplicate URLs by domain to get diverse top-level sources
+  const seenDomains = new Set<string>()
+  const topPages = allUrls
+    .filter(u => {
+      if (u.includes('duckduckgo.com')) return false
+      try {
+        const domain = new URL(u).hostname
+        if (seenDomains.has(domain)) return false
+        seenDomains.add(domain)
+        return true
+      } catch { return false }
+    })
+    .slice(0, maxTopPages)
 
+  onProgress?.({ phase: 'Reading', detail: `Reading ${topPages.length} pages + following links...` })
   const pageContents: string[] = []
+  const readUrls = new Set<string>()
 
-  for (const url of pagesToRead) {
+  // Read top-level pages and extract internal links for deeper reading
+  const subPageUrls: string[] = []
+
+  for (const url of topPages) {
+    if (readUrls.has(url)) continue
+    readUrls.add(url)
     onProgress?.({ phase: 'Reading', detail: `Reading ${url.slice(0, 60)}...` })
     try {
-      const content = await WebFetchTool.execute({ url, max_chars: 3000 })
+      const content = await WebFetchTool.execute({ url, max_chars: maxCharsPerPage })
+      if (content && !content.startsWith('Error') && content.length > 100) {
+        pageContents.push(content)
+        result.pagesRead++
+
+        // Extract internal links from the page content for deeper reading
+        // Look for markdown links that point to sub-pages on the same domain
+        try {
+          const domain = new URL(url).hostname
+          const linkMatches = content.matchAll(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g)
+          for (const m of linkMatches) {
+            const linkUrl = m[2]!
+            try {
+              const linkDomain = new URL(linkUrl).hostname
+              if (linkDomain === domain && !readUrls.has(linkUrl) && !linkUrl.includes('#')) {
+                subPageUrls.push(linkUrl)
+              }
+            } catch {}
+          }
+          // Also match relative-looking links converted to full URLs
+          const relMatches = content.matchAll(/\[([^\]]+)\]\(([^)]+)\)/g)
+          for (const m of relMatches) {
+            const href = m[2]!
+            if (href.startsWith('http') || href.startsWith('#')) continue
+            try {
+              const full = new URL(href, url).toString()
+              if (!readUrls.has(full)) subPageUrls.push(full)
+            } catch {}
+          }
+        } catch {}
+      }
+    } catch {}
+  }
+
+  // Phase 2b: Read sub-pages (tutorial chapters, documentation sections)
+  const subPagesToRead = subPageUrls
+    .filter(u => !readUrls.has(u))
+    .slice(0, maxSubPages)
+
+  if (subPagesToRead.length > 0) {
+    onProgress?.({ phase: 'Deep reading', detail: `Following ${subPagesToRead.length} sub-pages...` })
+  }
+
+  for (const url of subPagesToRead) {
+    if (readUrls.has(url)) continue
+    readUrls.add(url)
+    onProgress?.({ phase: 'Deep reading', detail: `Reading ${url.slice(0, 60)}...` })
+    try {
+      const content = await WebFetchTool.execute({ url, max_chars: maxCharsPerPage })
       if (content && !content.startsWith('Error') && content.length > 100) {
         pageContents.push(content)
         result.pagesRead++
@@ -124,7 +191,8 @@ export async function learnTopic(
   // ── Phase 3: Extract concepts ─────────────────────────────────────
   onProgress?.({ phase: 'Extracting', detail: 'Extracting core concepts...' })
 
-  const concepts = extractConcepts(topic, [...allSnippets, ...pageContents])
+  // Only extract concepts from actual page content, not search snippets
+  const concepts = extractConcepts(topic, pageContents)
   result.conceptsLearned = concepts
 
   achieveMilestone(goal.id, 'Extract concepts')
@@ -197,14 +265,16 @@ function buildSearchQueries(topic: string, depth: 'quick' | 'normal' | 'deep'): 
   const queries = [
     `${topic} tutorial for beginners`,
     `${topic} core concepts explained`,
-    `${topic} best practices 2024 2025`,
+    `${topic} best practices 2025`,
   ]
 
   if (depth === 'normal' || depth === 'deep') {
     queries.push(
       `${topic} common patterns and examples`,
-      `${topic} documentation official`,
+      `${topic} official documentation guide`,
       `${topic} cheat sheet quick reference`,
+      `${topic} data types and structures`,
+      `${topic} standard library overview`,
     )
   }
 
@@ -222,55 +292,110 @@ function buildSearchQueries(topic: string, depth: 'quick' | 'normal' | 'deep'): 
 
 // ── Concept extraction ───────────────────────────────────────────────────
 
+/** Lines that are navigation, boilerplate, or noise — not real concepts. */
+function isJunkLine(line: string): boolean {
+  const l = line.toLowerCase()
+  // Search result artifacts
+  if (l.startsWith('search results for')) return true
+  // Pure URLs or markdown links that are just navigation
+  if (/^\[?https?:\/\//.test(line)) return true
+  // Markdown links without explanatory text (just "[Label](url)" style nav)
+  if (/^\[.{1,50}\]\(http/.test(line) && line.length < 80) return true
+  // Lines that are mostly markdown link syntax (link lists / nav menus)
+  if ((line.match(/\]\(/g) || []).length >= 1 && (line.match(/\]\(/g) || []).length * 30 > line.length) return true
+  // Single-word or short bracket labels that are clearly nav items
+  if (/^\[[\w\s]{1,25}\]\(/.test(line) && line.length < 60) return true
+  // Navigation / CTA / site chrome
+  if (/^(click|sign in|log in|subscribe|download now|install|try it|start learning|next|previous|menu|home|back to|read more|see also|related|you will|in our|this is an optional|you can study)/i.test(l)) return true
+  // Reference sections / site chrome
+  if (/^(you will also find|complete function|method references|check your level|many chapters|this tutorial)/i.test(l)) return true
+  // Title lines with URLs appended
+  if (/https?:\/\//.test(line) && line.indexOf('http') > line.length * 0.4) return true
+  // Copyright, cookie banners
+  if (/copyright|cookie|privacy policy|terms of|all rights reserved/i.test(l)) return true
+  // Too many special characters (likely markup noise)
+  if ((line.match(/[»›→←▶◀|►☆★©®™]/g) || []).length > 1) return true
+  // Mostly punctuation/symbols (less than 60% alpha)
+  const alphaRatio = (line.match(/[a-zA-Z]/g) || []).length / line.length
+  if (alphaRatio < 0.5) return true
+  return false
+}
+
 /**
- * Extract core concepts from text about a topic.
- * Heuristic-based: looks for patterns like definitions, key terms,
- * numbered lists, and recurring technical phrases.
+ * Extract core concepts from page content about a topic.
+ * Prioritizes: definitions > heading-context pairs > substantive statements.
  */
 function extractConcepts(topic: string, texts: string[]): string[] {
   const concepts: string[] = []
   const seen = new Set<string>()
   const topicLower = topic.toLowerCase()
+  const topicPrefix = topicLower.slice(0, Math.min(4, topicLower.length))
 
   for (const text of texts) {
     const lines = text.split('\n')
+    let lastHeading = ''
 
     for (const line of lines) {
       const trimmed = line.trim()
-      if (trimmed.length < 20 || trimmed.length > 200) continue
+      if (trimmed.length < 25 || trimmed.length > 250) continue
+      if (isJunkLine(trimmed)) continue
 
-      // Pattern: "X is a Y" definitions
-      const defMatch = trimmed.match(/^(.{10,60})\s+(?:is|are)\s+(?:a|an|the)\s+(.{10,100})/i)
-      if (defMatch && trimmed.toLowerCase().includes(topicLower.slice(0, 4))) {
-        addConcept(concepts, seen, trimmed.slice(0, 150))
+      // Track headings for context
+      const headingMatch = trimmed.match(/^#{1,3}\s+(.+)/)
+      if (headingMatch) {
+        lastHeading = headingMatch[1]!.trim()
         continue
       }
 
-      // Pattern: lines with key technical terms related to the topic
-      if (trimmed.toLowerCase().includes(topicLower) && (
-        trimmed.includes(':') ||
-        trimmed.match(/^[-•*]\s/) ||
-        trimmed.match(/^\d+[\.)]\s/)
-      )) {
-        addConcept(concepts, seen, trimmed.replace(/^[-•*\d\.)]+\s*/, '').slice(0, 150))
+      const lower = trimmed.toLowerCase()
+      // Strip markdown list markers for the clean concept text
+      const clean = trimmed.replace(/^[-•*]\s+/, '').replace(/^\d+[\.)]\s+/, '').slice(0, 180)
+
+      // Priority 1: "X is a/an/the Y" definitions
+      if (/\b(?:is|are)\s+(?:a|an|the)\s+/i.test(clean) && lower.includes(topicPrefix)) {
+        addConcept(concepts, seen, clean)
         continue
       }
 
-      // Pattern: "use X to Y" or "X allows Y" patterns
-      const useMatch = trimmed.match(/(?:use|using|allows?|enables?|provides?)\s+(.{5,80})/i)
-      if (useMatch && trimmed.toLowerCase().includes(topicLower.slice(0, 4))) {
-        addConcept(concepts, seen, trimmed.slice(0, 150))
+      // Priority 2: "X is used for Y" / "X allows Y" functional descriptions
+      if (/\b(?:is used|can be used|allows?|enables?|provides?|supports?|designed for|built for)\b/i.test(clean) && lower.includes(topicPrefix)) {
+        addConcept(concepts, seen, clean)
+        continue
+      }
+
+      // Priority 3: Lines under a relevant heading that contain substance
+      if (lastHeading && lastHeading.toLowerCase().includes(topicPrefix)) {
+        // Must be a statement (has a verb), not just a label
+        if (/\b(?:is|are|was|were|has|have|can|will|use|run|create|return|define|call|import|store)\b/i.test(clean)) {
+          addConcept(concepts, seen, clean)
+          continue
+        }
+      }
+
+      // Priority 4: Bulleted/numbered items mentioning the topic with a colon (key: value pattern)
+      if (/^[-•*]\s|^\d+[\.)]\s/.test(trimmed) && lower.includes(topicPrefix) && clean.includes(':')) {
+        addConcept(concepts, seen, clean)
+        continue
       }
     }
   }
 
-  // Deduplicate and limit
-  return concepts.slice(0, 20)
+  return concepts.slice(0, 50)
 }
 
 function addConcept(concepts: string[], seen: Set<string>, concept: string): void {
-  const key = concept.toLowerCase().slice(0, 30)
+  // Deduplicate by first 40 chars (catches near-duplicates)
+  const key = concept.toLowerCase().replace(/[^a-z0-9 ]/g, '').slice(0, 40)
   if (seen.has(key)) return
+  if (key.length < 15) return // Too short to be meaningful
+  // Must have enough real words (not just markup or labels)
+  const words = concept.split(/\s+/).filter(w => w.length > 2 && !/^\[|^\(|^\]|^\)|^http/.test(w))
+  if (words.length < 4) return
   seen.add(key)
-  concepts.push(concept)
+  // Clean markdown links: "[Label](url) – desc" → "Label – desc"
+  const cleaned = concept
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    .replace(/\s+/g, ' ')
+    .trim()
+  concepts.push(cleaned)
 }
