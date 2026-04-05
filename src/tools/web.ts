@@ -66,57 +66,81 @@ async function duckDuckGoSearch(query: string, maxResults = 8): Promise<SearchRe
   const results: SearchResult[] = []
 
   try {
-    // Use DuckDuckGo HTML lite — simplest, most reliable, no JS needed
-    const url = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`
-    const res = await fetch(url, {
+    // Use DuckDuckGo HTML endpoint with POST + browser headers (avoids CAPTCHA)
+    const formData = new URLSearchParams()
+    formData.append('q', query)
+    formData.append('b', '')
+    formData.append('kl', '')
+
+    const res = await fetch('https://html.duckduckgo.com/html/', {
+      method: 'POST',
       headers: {
-        'User-Agent': 'Ghost-Code/1.0 (autonomous coding agent)',
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.5',
       },
+      body: formData.toString(),
       signal: AbortSignal.timeout(15_000),
     })
 
     if (!res.ok) return []
     const html = await res.text()
 
-    // Parse results from DuckDuckGo HTML
-    const resultBlocks = html.split(/class="result__body"/)
+    // Parse results: <a class="result__a" href="...">title</a> ... <a class="result__snippet">desc</a>
+    const resultPattern = /<a[^>]*class="result__a"[^>]*href="([^"]*)"[^>]*>([\s\S]*?)<\/a>[\s\S]*?<a[^>]*class="result__snippet"[^>]*>([\s\S]*?)<\/a>/gi
+    let match: RegExpExecArray | null
+    while ((match = resultPattern.exec(html)) !== null && results.length < maxResults) {
+      let [, resultUrl, title, snippet] = match
+      if (!resultUrl || !title) continue
 
-    for (let i = 1; i < resultBlocks.length && results.length < maxResults; i++) {
-      const block = resultBlocks[i]!
-
-      // Extract title and URL from result__a link
-      const linkMatch = block.match(/class="result__a"[^>]*href="([^"]*)"[^>]*>([\s\S]*?)<\/a>/)
-      let resultUrl = linkMatch?.[1] || ''
-      const title = linkMatch?.[2] ? htmlToText(linkMatch[2]).trim() : ''
-
-      // Fix protocol-relative URLs
-      if (resultUrl.startsWith('//')) resultUrl = 'https:' + resultUrl
+      title = htmlToText(title).trim()
+      snippet = htmlToText(snippet || '').slice(0, 200)
 
       // DuckDuckGo wraps URLs in a redirect — extract the actual URL
       const uddgMatch = resultUrl.match(/uddg=([^&]+)/)
-      if (uddgMatch) resultUrl = decodeURIComponent(uddgMatch[1]!)
+      if (uddgMatch) {
+        try { resultUrl = decodeURIComponent(uddgMatch[1]!) } catch {}
+      }
 
-      // Extract snippet
-      const snippetMatch = block.match(/class="result__snippet"[^>]*>([\s\S]*?)<\//)
-      const snippet = snippetMatch?.[1]
-        ? htmlToText(snippetMatch[1]).slice(0, 200)
-        : ''
+      if (resultUrl && title && !resultUrl.includes('duckduckgo.com')) {
+        results.push({ title, url: resultUrl, snippet })
+      }
+    }
 
-      if (resultUrl && title) {
-        // Skip DuckDuckGo internal links
-        if (!resultUrl.includes('duckduckgo.com/y.js')) {
+    // Fallback: simpler pattern if regex above didn't match (layout changes)
+    if (results.length === 0) {
+      const resultBlocks = html.split(/class="result__body"/)
+      for (let i = 1; i < resultBlocks.length && results.length < maxResults; i++) {
+        const block = resultBlocks[i]!
+        const linkMatch = block.match(/class="result__a"[^>]*href="([^"]*)"[^>]*>([\s\S]*?)<\/a>/)
+        let resultUrl = linkMatch?.[1] || ''
+        const title = linkMatch?.[2] ? htmlToText(linkMatch[2]).trim() : ''
+
+        if (resultUrl.startsWith('//')) resultUrl = 'https:' + resultUrl
+        const uddgMatch = resultUrl.match(/uddg=([^&]+)/)
+        if (uddgMatch) {
+          try { resultUrl = decodeURIComponent(uddgMatch[1]!) } catch {}
+        }
+
+        const snippetMatch = block.match(/class="result__snippet"[^>]*>([\s\S]*?)<\//)
+        const snippet = snippetMatch?.[1] ? htmlToText(snippetMatch[1]).slice(0, 200) : ''
+
+        if (resultUrl && title && !resultUrl.includes('duckduckgo.com')) {
           results.push({ title, url: resultUrl, snippet })
         }
       }
     }
   } catch {}
 
-  // Fallback: try DuckDuckGo instant answer API (JSON, no key)
+  // Fallback: DuckDuckGo instant answer API (JSON, no key)
   if (results.length === 0) {
     try {
       const url = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1&skip_disambig=1`
       const res = await fetch(url, {
-        headers: { 'User-Agent': 'Ghost-Code/1.0' },
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        },
         signal: AbortSignal.timeout(10_000),
       })
       if (res.ok) {
