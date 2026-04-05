@@ -189,15 +189,15 @@ export function assertBelief(
 
   store.beliefs.push(belief)
 
-  // Keep max 300 beliefs
-  if (store.beliefs.length > 300) {
+  // Keep max 1000 beliefs
+  if (store.beliefs.length > 1000) {
     const abandoned = store.beliefs.filter(b => b.status === 'abandoned')
     const revised = store.beliefs.filter(b => b.status === 'revised')
     const active = store.beliefs.filter(b => b.status === 'active')
     store.beliefs = [
-      ...active.slice(-200),
-      ...revised.slice(-70),
-      ...abandoned.slice(-30),
+      ...active.slice(-800),
+      ...revised.slice(-150),
+      ...abandoned.slice(-50),
     ]
   }
 
