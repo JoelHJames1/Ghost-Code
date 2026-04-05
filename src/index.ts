@@ -60,6 +60,7 @@ import {
   spinner,
   DIM,
   formatMarkdown,
+  createStreamRenderer,
 } from './ui/display.js'
 
 // ── CLI argument parsing ─────────────────────────────────────────────────
@@ -423,14 +424,13 @@ async function interactiveMode(serverConfig: ServerConfig) {
     let spin = spinner()
     try {
       let firstChunk = true
-      let responseBuffer = ''
+      const renderer = createStreamRenderer()
 
       const agentOpts = {
         stream: true,
         config: serverConfig,
         abortSignal: currentAbort.signal,
         getQueuedMessage: () => {
-          // Agent calls this between tool rounds to check for user messages
           const msg = queuedMessage
           queuedMessage = null
           return msg
@@ -438,8 +438,8 @@ async function interactiveMode(serverConfig: ServerConfig) {
         onText: (text: string) => {
           if (currentAbort?.signal.aborted) return
           if (firstChunk) { spin.stop(); firstChunk = false }
-          // Collect chunks — we format the full response at the end
-          responseBuffer += text
+          // Stream formatted text line-by-line as it arrives
+          renderer.push(text)
         },
         onToolStart: (name: string, args: Record<string, unknown>) => {
           if (currentAbort?.signal.aborted) return
@@ -462,10 +462,7 @@ async function interactiveMode(serverConfig: ServerConfig) {
       }
 
       if (!currentAbort.signal.aborted) {
-        // Format and display the collected response
-        if (responseBuffer.trim()) {
-          process.stdout.write(formatMarkdown(responseBuffer))
-        }
+        renderer.flush()
         process.stdout.write('\n\n')
       }
     } catch (e: any) {

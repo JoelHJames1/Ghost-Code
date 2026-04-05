@@ -170,4 +170,88 @@ export function formatMarkdown(text: string): string {
   return result.join('\n')
 }
 
+// ── Streaming markdown renderer ─────────────────────────────────────────
+
+/**
+ * Creates a streaming markdown formatter that renders line-by-line
+ * as text arrives. Feels live like Claude Code — no wall of text.
+ */
+export function createStreamRenderer(): {
+  push: (chunk: string) => void
+  flush: () => void
+} {
+  let buffer = ''
+  let inCodeBlock = false
+
+  function renderLine(line: string): string {
+    // Code block toggle
+    if (line.trim().startsWith('```')) {
+      inCodeBlock = !inCodeBlock
+      if (inCodeBlock) {
+        const lang = line.trim().slice(3).trim()
+        return DIM(lang ? `  ┌─ ${lang} ─` : '  ┌──')
+      } else {
+        return DIM('  └──')
+      }
+    }
+
+    if (inCodeBlock) {
+      return DIM('  │ ') + chalk.cyan(line)
+    }
+
+    let formatted = line
+
+    // Headings
+    if (/^#{1,3}\s/.test(formatted)) {
+      const level = (formatted.match(/^(#+)/))?.[1]?.length || 1
+      const heading = formatted.replace(/^#+\s*/, '')
+      if (level === 1) return '\n' + BOLD(chalk.hex('#4285F4')(heading))
+      if (level === 2) return '\n' + BOLD(heading)
+      return BOLD(heading)
+    }
+
+    // Bullets
+    if (/^\s*[-*•]\s/.test(formatted)) {
+      formatted = formatted.replace(/^(\s*)([-*•])(\s)/, '$1' + chalk.hex('#4285F4')('•') + '$3')
+    }
+
+    // Numbered lists
+    if (/^\s*\d+[.)]\s/.test(formatted)) {
+      formatted = formatted.replace(/^(\s*)(\d+[.)])(\s)/, '$1' + chalk.hex('#4285F4')('$2') + '$3')
+    }
+
+    // Inline code
+    formatted = formatted.replace(/`([^`]+)`/g, (_, code) => chalk.cyan(code))
+    // Bold
+    formatted = formatted.replace(/\*\*([^*]+)\*\*/g, (_, text) => BOLD(text))
+    // Italic
+    formatted = formatted.replace(/(?<!\*)\*([^*]+)\*(?!\*)/g, (_, text) => chalk.italic(text))
+
+    return formatted
+  }
+
+  return {
+    push(chunk: string) {
+      buffer += chunk
+
+      // Process complete lines
+      const lines = buffer.split('\n')
+      // Keep the last incomplete line in the buffer
+      buffer = lines.pop() || ''
+
+      for (const line of lines) {
+        process.stdout.write(renderLine(line) + '\n')
+      }
+    },
+    flush() {
+      // Render any remaining buffered text
+      if (buffer.trim()) {
+        process.stdout.write(renderLine(buffer))
+      }
+      buffer = ''
+      inCodeBlock = false
+    },
+  }
+}
+
 export { GHOST_BLUE, DIM, BOLD }
