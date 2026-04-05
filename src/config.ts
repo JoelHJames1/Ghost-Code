@@ -49,7 +49,7 @@ export interface GhostConfig {
 }
 
 const DEFAULTS: GhostConfig = {
-  model: 'gemma4:31b',
+  model: 'gemma4:26b',
   baseUrl: 'http://127.0.0.1:8776',
   maxToolRounds: 30,
   projectInstructionsFile: '.ghost-code.md',
