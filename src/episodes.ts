@@ -24,6 +24,8 @@ import { join } from 'path'
 import type { Message, ServerConfig } from './api.js'
 import { tokenize } from './vectorsearch.js'
 import { search, type SearchDocument, type SearchResult } from './vectorsearch.js'
+import { getVectorStore } from './vector-store.js'
+import { embedOne } from './embedding-server.js'
 import {
   extractSurprisalFromResponse,
   detectSurprisalBoundaries,
@@ -339,9 +341,19 @@ export function segmentAndStore(
 
   store.episodes.push(...newEpisodes)
 
-  // Keep max 200 episodes
-  if (store.episodes.length > 200) {
-    store.episodes = store.episodes.slice(-200)
+  // Embed new episodes for vector search (fire-and-forget)
+  for (const ep of newEpisodes) {
+    const text = `${ep.summary} ${ep.filesRead.join(' ')} ${ep.filesEdited.join(' ')} ${ep.toolsUsed.join(' ')}`
+    embedOne(text).then(embedding => {
+      if (embedding) {
+        getVectorStore('episodes').upsert(ep.id, text, embedding)
+      }
+    }).catch(() => {})
+  }
+
+  // Keep max 2000 episodes
+  if (store.episodes.length > 2000) {
+    store.episodes = store.episodes.slice(-2000)
   }
 
   saveEpisodes(store)

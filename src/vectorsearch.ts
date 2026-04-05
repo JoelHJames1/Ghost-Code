@@ -294,3 +294,102 @@ export function hasOverlap(query: string, text: string): boolean {
   const tTokens = tokenize(text)
   return tTokens.some(t => qTokens.has(t))
 }
+
+// ── Hybrid Search (Vectors + TF-IDF + Reciprocal Rank Fusion) ───────────
+
+import { embedOne, isEmbeddingAvailable } from './embedding-server.js'
+import { type VectorStore, type VectorSearchResult } from './vector-store.js'
+
+/**
+ * Hybrid search: combines vector embedding search with TF-IDF using
+ * Reciprocal Rank Fusion (RRF). Falls back to TF-IDF only if
+ * embeddings are unavailable.
+ *
+ * @param documents - Documents for TF-IDF search
+ * @param query - Search query
+ * @param vectorStore - Optional vector store for embedding search
+ * @param topK - Number of results to return
+ * @param minScore - Minimum score threshold
+ * @param filter - Optional metadata filter
+ */
+export async function hybridSearch(
+  documents: SearchDocument[],
+  query: string,
+  vectorStore: VectorStore | null,
+  topK = 5,
+  minScore = 0.05,
+  filter?: SearchFilter,
+): Promise<SearchResult[]> {
+  // Always run TF-IDF (fast, synchronous)
+  const tfidfResults = search(documents, query, topK * 2, minScore, filter)
+
+  // Try vector search if store exists and embeddings are available
+  let vectorResults: VectorSearchResult[] = []
+  if (vectorStore && vectorStore.size() > 0 && isEmbeddingAvailable()) {
+    try {
+      const queryEmbedding = await embedOne(query)
+      if (queryEmbedding) {
+        vectorResults = vectorStore.search(
+          queryEmbedding,
+          topK * 2,
+          0.3, // Higher threshold for vectors (cosine similarity is different scale)
+          filter ? {
+            eq: filter.eq,
+            in: filter.in,
+            gte: filter.gte,
+            lte: filter.lte,
+          } : undefined,
+        )
+      }
+    } catch {}
+  }
+
+  // If no vector results, return TF-IDF only
+  if (vectorResults.length === 0) {
+    return tfidfResults.slice(0, topK)
+  }
+
+  // Reciprocal Rank Fusion (RRF): merge results from different ranking systems
+  // RRF score = sum(1 / (k + rank)) across all rankers. k=60 is standard.
+  const K = 60
+  const fusedScores = new Map<string, { score: number; text: string; metadata?: Record<string, unknown> }>()
+
+  // Score TF-IDF results (weight: 0.35)
+  for (let i = 0; i < tfidfResults.length; i++) {
+    const r = tfidfResults[i]!
+    const id = String(r.id)
+    const rrfScore = 0.35 * (1 / (K + i + 1))
+    const existing = fusedScores.get(id)
+    if (existing) {
+      existing.score += rrfScore
+    } else {
+      fusedScores.set(id, { score: rrfScore, text: r.text, metadata: r.metadata })
+    }
+  }
+
+  // Score vector results (weight: 0.65 — vectors are more reliable for semantic)
+  for (let i = 0; i < vectorResults.length; i++) {
+    const r = vectorResults[i]!
+    const id = String(r.id)
+    const rrfScore = 0.65 * (1 / (K + i + 1))
+    const existing = fusedScores.get(id)
+    if (existing) {
+      existing.score += rrfScore
+    } else {
+      fusedScores.set(id, { score: rrfScore, text: r.text, metadata: r.metadata })
+    }
+  }
+
+  // Sort by fused score and return
+  const merged = [...fusedScores.entries()]
+    .map(([id, data]) => ({
+      id,
+      score: data.score,
+      text: data.text,
+      metadata: data.metadata,
+    }))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, topK)
+
+  return merged
+}

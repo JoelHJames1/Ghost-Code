@@ -26,7 +26,9 @@
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs'
 import { join } from 'path'
 import { homedir } from 'os'
-import { search, type SearchDocument } from '../vectorsearch.js'
+import { search, hybridSearch, type SearchDocument } from '../vectorsearch.js'
+import { getVectorStore } from '../vector-store.js'
+import { embedOne } from '../embedding-server.js'
 
 // ── Types ────────────────────────────────────────────────────────────────
 
@@ -189,15 +191,18 @@ export function assertBelief(
 
   store.beliefs.push(belief)
 
-  // Keep max 1000 beliefs
-  if (store.beliefs.length > 1000) {
+  // Embed for vector search (fire-and-forget, non-blocking)
+  embedBelief(belief)
+
+  // Keep max 10000 beliefs
+  if (store.beliefs.length > 10000) {
     const abandoned = store.beliefs.filter(b => b.status === 'abandoned')
     const revised = store.beliefs.filter(b => b.status === 'revised')
     const active = store.beliefs.filter(b => b.status === 'active')
     store.beliefs = [
-      ...active.slice(-800),
-      ...revised.slice(-150),
-      ...abandoned.slice(-50),
+      ...active.slice(-8000),
+      ...revised.slice(-1500),
+      ...abandoned.slice(-500),
     ]
   }
 
@@ -269,7 +274,69 @@ function findContradictions(store: BeliefStore, statement: string, domain: Belie
 }
 
 /**
- * Search beliefs by query.
+ * Embed a belief into the vector store (non-blocking).
+ */
+function embedBelief(belief: Belief): void {
+  const text = `${belief.statement} ${belief.evidence.map(e => e.content).join(' ')}`
+  embedOne(text).then(embedding => {
+    if (embedding) {
+      const store = getVectorStore('beliefs')
+      store.upsert(belief.id, text, embedding, { domain: belief.domain, status: belief.status })
+    }
+  }).catch(() => {})
+}
+
+/**
+ * Migrate all existing beliefs to vector store (one-time, background).
+ */
+export async function migrateBeliefsToVectors(): Promise<number> {
+  const store = loadBeliefs()
+  const vectorStore = getVectorStore('beliefs')
+  const active = store.beliefs.filter(b => b.status === 'active')
+  let migrated = 0
+
+  // Batch embed in chunks of 16
+  for (let i = 0; i < active.length; i += 16) {
+    const batch = active.slice(i, i + 16)
+    for (const belief of batch) {
+      if (!vectorStore.has(belief.id)) {
+        embedBelief(belief)
+        migrated++
+      }
+    }
+    // Small delay to not overwhelm the embedding server
+    if (i + 16 < active.length) {
+      await new Promise(r => setTimeout(r, 100))
+    }
+  }
+  return migrated
+}
+
+/**
+ * Search beliefs by query (hybrid: vectors + TF-IDF).
+ */
+export async function searchBeliefsHybrid(query: string, topK = 5): Promise<Belief[]> {
+  const store = loadBeliefs()
+  const active = store.beliefs.filter(b => b.status === 'active')
+  if (active.length === 0) return []
+
+  const docs: SearchDocument[] = active.map((b, i) => ({
+    id: b.id,
+    text: `${b.statement} ${b.evidence.map(e => e.content).join(' ')}`,
+  }))
+
+  const vectorStore = getVectorStore('beliefs')
+  const results = await hybridSearch(docs, query, vectorStore, topK, 0.03)
+
+  // Map results back to beliefs
+  const beliefMap = new Map(active.map(b => [b.id, b]))
+  return results
+    .map(r => beliefMap.get(String(r.id)))
+    .filter((b): b is Belief => b !== undefined)
+}
+
+/**
+ * Search beliefs by query (TF-IDF only, synchronous fallback).
  */
 export function searchBeliefs(query: string, topK = 5): Belief[] {
   const store = loadBeliefs()

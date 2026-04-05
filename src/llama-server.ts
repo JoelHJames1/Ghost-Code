@@ -305,13 +305,14 @@ export async function getServerProps(baseUrl: string): Promise<Record<string, un
 /**
  * Register cleanup handlers to stop the server on process exit.
  */
-export function registerCleanup(): void {
+export function registerCleanup(extraCleanup?: () => void): void {
   const cleanup = () => {
     stopLlamaServer()
+    extraCleanup?.()
     process.exit(0)
   }
 
-  process.on('exit', () => stopLlamaServer())
+  process.on('exit', () => { stopLlamaServer(); extraCleanup?.() })
   process.on('SIGINT', cleanup)
   process.on('SIGTERM', cleanup)
 }

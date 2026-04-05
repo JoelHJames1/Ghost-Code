@@ -38,6 +38,14 @@ export interface GhostConfig {
   flashAttn: boolean
   /** Additional CLI args for llama-server */
   llamaExtraArgs: string[]
+
+  // ── Embedding server settings ──────────────────────────────
+  /** HuggingFace repo for embedding model (e.g. "nomic-ai/nomic-embed-text-v1.5-GGUF") */
+  embeddingHfRepo: string
+  /** Path to embedding GGUF model file (overrides hfRepo) */
+  embeddingModelPath?: string
+  /** Port for embedding server (default: 8777) */
+  embeddingPort: number
 }
 
 const DEFAULTS: GhostConfig = {
@@ -51,6 +59,8 @@ const DEFAULTS: GhostConfig = {
   llamaContextSize: 131072,
   flashAttn: true,
   llamaExtraArgs: [],
+  embeddingHfRepo: 'nomic-ai/nomic-embed-text-v1.5-GGUF',
+  embeddingPort: 8777,
 }
 
 function getConfigDir(): string {

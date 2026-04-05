@@ -22,7 +22,9 @@
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs'
 import { join } from 'path'
 import { homedir } from 'os'
-import { search, type SearchDocument } from '../vectorsearch.js'
+import { search, hybridSearch, type SearchDocument } from '../vectorsearch.js'
+import { getVectorStore } from '../vector-store.js'
+import { embedOne } from '../embedding-server.js'
 
 // ── Types ────────────────────────────────────────────────────────────────
 
@@ -225,11 +227,18 @@ export function addRelation(
 
   freshStore.relations.push(relation)
 
-  // Keep max 1000 relations
-  if (freshStore.relations.length > 1000) {
+  // Embed for vector search (fire-and-forget)
+  embedOne(label).then(embedding => {
+    if (embedding) {
+      getVectorStore('graph').upsert(relation.id, label, embedding, { type: relation.type })
+    }
+  }).catch(() => {})
+
+  // Keep max 10000 relations
+  if (freshStore.relations.length > 10000) {
     const superseded = freshStore.relations.filter(r => r.status === 'superseded')
     const active = freshStore.relations.filter(r => r.status !== 'superseded')
-    freshStore.relations = [...active.slice(-900), ...superseded.slice(-100)]
+    freshStore.relations = [...active.slice(-9000), ...superseded.slice(-1000)]
   }
 
   saveGraph(freshStore)

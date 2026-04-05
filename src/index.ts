@@ -48,6 +48,8 @@ import { getGoalStats, getActiveGoals } from './growth/goals.js'
 import { getEpisodeStats, searchEpisodes } from './episodes.js'
 import { getBudgetStats } from './context-compiler.js'
 import { ensureAndStartServer, stopLlamaServer, registerCleanup } from './llama-server.js'
+import { stopEmbeddingServer, getEmbeddingStatus } from './embedding-server.js'
+import { flushAllVectorStores, getVectorStoreStats } from './vector-store.js'
 import {
   banner,
   toolCallHeader,
@@ -227,7 +229,10 @@ function extractImagePath(input: string): { imagePath: string | null; text: stri
 // ── Main ─────────────────────────────────────────────────────────────────
 
 async function main() {
-  registerCleanup()
+  registerCleanup(() => {
+    stopEmbeddingServer()
+    flushAllVectorStores()
+  })
 
   infoMsg('Starting llama-server...')
   let serverConfig: ServerConfig

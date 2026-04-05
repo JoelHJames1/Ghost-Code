@@ -22,6 +22,8 @@ import { homedir } from 'os'
 import type { Message } from './api.js'
 import { estimateMessageTokens, estimateConversationTokens, getTokenBudget } from './context-window.js'
 import { cachedSearch, clearSearchCache, type SearchDocument, type SearchFilter } from './vectorsearch.js'
+import { getVectorStore } from './vector-store.js'
+import { embedOne } from './embedding-server.js'
 import { logEvent } from './eventlog.js'
 import { segmentAndStore } from './episodes.js'
 
@@ -81,15 +83,21 @@ export function addMemory(summary: string, project?: string): string {
     project,
     status: 'active',
   })
-  // Keep max 100 entries (active + superseded)
-  if (store.entries.length > 100) {
-    // Remove oldest superseded first, then oldest active
+  // Embed for vector search (fire-and-forget)
+  embedOne(summary).then(embedding => {
+    if (embedding) {
+      getVectorStore('memories').upsert(id, summary, embedding, { project })
+    }
+  }).catch(() => {})
+
+  // Keep max 5000 entries (active + superseded)
+  if (store.entries.length > 5000) {
     const superseded = store.entries.filter(e => e.status === 'superseded')
     const active = store.entries.filter(e => e.status !== 'superseded')
-    store.entries = [...active.slice(-80), ...superseded.slice(-20)]
+    store.entries = [...active.slice(-4000), ...superseded.slice(-1000)]
   }
   saveMemory(store)
-  clearSearchCache()  // Invalidate cached search results
+  clearSearchCache()
   return id
 }
 
