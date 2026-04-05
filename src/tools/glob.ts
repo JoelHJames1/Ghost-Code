@@ -30,11 +30,13 @@ export const GlobTool: ToolDefinition = {
     const pattern = args.pattern as string
     const searchPath = ((args.path as string) || process.cwd()).replace(/\\ /g, ' ')
 
-    // Use Bun's glob first — reliable, no shell escaping issues
+    // Use Bun's glob — exclude node_modules, .git, dist by default
     try {
       const g = new Bun.Glob(pattern)
       const results: string[] = []
+      const skipDirs = ['node_modules', '.git', 'dist', '.next', '__pycache__', '.venv', 'build']
       for await (const file of g.scan({ cwd: searchPath, absolute: true })) {
+        if (skipDirs.some(d => file.includes(`/${d}/`))) continue
         results.push(file)
         if (results.length >= 200) break
       }
