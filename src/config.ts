@@ -49,14 +49,14 @@ export interface GhostConfig {
 }
 
 const DEFAULTS: GhostConfig = {
-  model: 'gemma4:e2b',
+  model: 'gemma4:31b',
   baseUrl: 'http://127.0.0.1:8776',
   maxToolRounds: 30,
   projectInstructionsFile: '.ghost-code.md',
   requestTimeoutMs: 120_000,
   llamaPort: 8776,
   gpuLayers: 99,
-  llamaContextSize: 131072,
+  llamaContextSize: 65536,
   flashAttn: true,
   llamaExtraArgs: [],
   embeddingHfRepo: 'nomic-ai/nomic-embed-text-v1.5-GGUF',
