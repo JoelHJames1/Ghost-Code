@@ -28,29 +28,29 @@ export const GlobTool: ToolDefinition = {
 
   async execute(args) {
     const pattern = args.pattern as string
-    const searchPath = (args.path as string) || process.cwd()
+    const searchPath = ((args.path as string) || process.cwd()).replace(/\\ /g, ' ')
 
+    // Use Bun's glob first — reliable, no shell escaping issues
     try {
-      // Use find + shell globbing for portability
-      const output = execSync(
-        `find ${JSON.stringify(searchPath)} -path ${JSON.stringify('*/' + pattern)} -o -name ${JSON.stringify(pattern)} 2>/dev/null | head -200 | sort`,
-        { encoding: 'utf-8', timeout: 10000, cwd: searchPath },
-      ).trim()
-
-      if (!output) return 'No files matched the pattern.'
-      const files = output.split('\n')
-      return `Found ${files.length} file(s):\n${output}`
+      const g = new Bun.Glob(pattern)
+      const results: string[] = []
+      for await (const file of g.scan({ cwd: searchPath, absolute: true })) {
+        results.push(file)
+        if (results.length >= 200) break
+      }
+      if (results.length === 0) return 'No files matched the pattern.'
+      return `Found ${results.length} file(s):\n${results.sort().join('\n')}`
     } catch {
-      // Fallback: use Bun's glob
+      // Fallback: find command with properly quoted path
       try {
-        const g = new Bun.Glob(pattern)
-        const results: string[] = []
-        for await (const file of g.scan({ cwd: searchPath, absolute: true })) {
-          results.push(file)
-          if (results.length >= 200) break
-        }
-        if (results.length === 0) return 'No files matched the pattern.'
-        return `Found ${results.length} file(s):\n${results.sort().join('\n')}`
+        const output = execSync(
+          `find "${searchPath}" -path "*/${pattern}" -o -name "${pattern}" 2>/dev/null | head -200 | sort`,
+          { encoding: 'utf-8', timeout: 10000 },
+        ).trim()
+
+        if (!output) return 'No files matched the pattern.'
+        const files = output.split('\n')
+        return `Found ${files.length} file(s):\n${output}`
       } catch (e: any) {
         return `Error searching files: ${e.message}`
       }
