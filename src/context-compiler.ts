@@ -72,6 +72,15 @@ interface ContextSlice {
  *
  * This is called before EVERY model call to ensure optimal context usage.
  */
+/** Callback for memory search events — shown in CLI */
+export type MemorySearchCallback = (event: string) => void
+let _onMemorySearch: MemorySearchCallback | null = null
+
+/** Set callback for memory search visibility in CLI */
+export function setMemorySearchCallback(cb: MemorySearchCallback | null): void {
+  _onMemorySearch = cb
+}
+
 export function compileContext(
   rawConversation: Message[],
   model: string,
@@ -168,11 +177,34 @@ export function compileContext(
     }
 
     // (d) Relevant beliefs — primary knowledge source
-    const beliefBudget = Math.floor((memBudget - memTokens) * 0.7)
+    // Pull more beliefs for coding/building tasks (code examples are large but critical)
+    const isCodingTask = /build|create|implement|make|write|code|develop|fix|debug|refactor|add|setup|install/i.test(currentQuery)
+    const beliefCount = isCodingTask ? 15 : 8
+    const beliefBudget = Math.floor((memBudget - memTokens) * 0.8)
     if (beliefBudget > 30) {
-      const beliefs = searchBeliefs(currentQuery, 8)
-      if (beliefs.length > 0) {
-        const beliefText = formatBeliefsForPrompt(beliefs, beliefBudget * CHARS_PER_TOKEN)
+      // Search with main query + extract topic-specific queries for broader recall
+      _onMemorySearch?.('🧠 Searching knowledge base...')
+      const allBeliefs = searchBeliefs(currentQuery, beliefCount)
+
+      // Also search for specific technologies mentioned in the query
+      const techKeywords = currentQuery.match(/\b(react|next\.?js|swift|swiftui|unity|unreal|python|fastapi|django|c#|csharp|\.net|typescript|tailwind|framer|three\.?js|android|kotlin|compose|flutter|vue|angular|node|express|go|rust|docker|kubernetes|postgresql|redis|mongodb)\b/gi)
+      if (techKeywords && isCodingTask) {
+        const seen = new Set(allBeliefs.map(b => b.id))
+        for (const tech of [...new Set(techKeywords)].slice(0, 3)) {
+          const techBeliefs = searchBeliefs(`${tech} code example pattern`, 5)
+          for (const b of techBeliefs) {
+            if (!seen.has(b.id) && allBeliefs.length < beliefCount + 5) {
+              seen.add(b.id)
+              allBeliefs.push(b)
+            }
+          }
+        }
+      }
+
+      if (allBeliefs.length > 0) {
+        const codeExamples = allBeliefs.filter(b => b.statement.length > 300).length
+        _onMemorySearch?.(`🧠 Found ${allBeliefs.length} relevant beliefs${codeExamples > 0 ? ` (${codeExamples} code examples)` : ''}`)
+        const beliefText = formatBeliefsForPrompt(allBeliefs, beliefBudget * CHARS_PER_TOKEN)
         if (beliefText) {
           memText += beliefText
           memTokens += estimateTokens(beliefText)

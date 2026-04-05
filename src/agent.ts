@@ -30,7 +30,7 @@ import { formatTaskListForPrompt, loadPersistedTasks, getTaskList } from './task
 import { formatScratchpadForPrompt } from './scratchpad.js'
 import { saveCheckpoint } from './checkpoint.js'
 import { logEvent } from './eventlog.js'
-import { compileContext } from './context-compiler.js'
+import { compileContext, setMemorySearchCallback } from './context-compiler.js'
 import { repairToolCall } from './tool-repair.js'
 import { enforceCapability } from './capabilities.js'
 import { lookupError, recordError, recordSolution } from './error-db.js'
@@ -59,6 +59,8 @@ export interface AgentOptions {
   onToolCallDelta?: (name: string, chunk: string) => void
   /** Called when a tool call is fully received (before execution) */
   onToolCallComplete?: () => void
+  /** Called when memory/knowledge search events happen */
+  onMemoryEvent?: (event: string) => void
 }
 
 /**
@@ -142,6 +144,7 @@ export async function runAgent(
     onToolEnd,
     onToolCallDelta,
     onToolCallComplete,
+    onMemoryEvent,
   } = options
 
   // Attach abort signal to config so chatCompletion can use it
@@ -153,15 +156,22 @@ export async function runAgent(
   // Check if user is reporting an error — look up known fixes
   let errorHint = ''
   if (/error|Error|ERR|failed|Failed|FAIL|crash|Crash|cannot|Cannot|not found|not provide|unexpected|Uncaught|SyntaxError|TypeError|ReferenceError/i.test(userMessage)) {
+    onMemoryEvent?.('🔍 Checking error database...')
     const knownFix = lookupError(userMessage, 'user-reported')
     if (knownFix && knownFix.confidence >= 0.3) {
+      onMemoryEvent?.(`💡 Found known fix (${Math.round(knownFix.confidence * 100)}% confidence)`)
       errorHint = `\n\n[Ghost Memory] I've seen this error before. Known fix (${Math.round(knownFix.confidence * 100)}% confidence): ${knownFix.solution}`
+    } else {
+      onMemoryEvent?.('🔍 No known fix — will diagnose fresh')
     }
   }
 
   // Add user message to the raw conversation (ground truth)
   const fullMessage = errorHint ? userMessage + errorHint : userMessage
   conversation.push({ role: 'user', content: fullMessage })
+
+  // Wire memory search visibility
+  setMemorySearchCallback(onMemoryEvent || null)
 
   const goalAnchor = userMessage
   const tools = getToolSpecs()

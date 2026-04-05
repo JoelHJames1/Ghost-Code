@@ -450,6 +450,11 @@ async function interactiveMode(serverConfig: ServerConfig) {
         onToolCallComplete: () => {
           liveCode.onToolCallComplete()
         },
+        onMemoryEvent: (event: string) => {
+          if (currentAbort?.signal.aborted) return
+          if (firstChunk) { spin.stop(); firstChunk = false }
+          process.stderr.write(chalk.hex('#4285F4')(`  ${event}\n`))
+        },
         onToolStart: (name: string, args: Record<string, unknown>) => {
           if (currentAbort?.signal.aborted) return
           if (firstChunk) { spin.stop(); firstChunk = false }
