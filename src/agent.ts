@@ -150,8 +150,18 @@ export async function runAgent(
   // Log the user message
   logEvent('user_message', 'user', { content: userMessage })
 
+  // Check if user is reporting an error — look up known fixes
+  let errorHint = ''
+  if (/error|Error|ERR|failed|Failed|FAIL|crash|Crash|cannot|Cannot|not found|not provide|unexpected|Uncaught|SyntaxError|TypeError|ReferenceError/i.test(userMessage)) {
+    const knownFix = lookupError(userMessage, 'user-reported')
+    if (knownFix && knownFix.confidence >= 0.3) {
+      errorHint = `\n\n[Ghost Memory] I've seen this error before. Known fix (${Math.round(knownFix.confidence * 100)}% confidence): ${knownFix.solution}`
+    }
+  }
+
   // Add user message to the raw conversation (ground truth)
-  conversation.push({ role: 'user', content: userMessage })
+  const fullMessage = errorHint ? userMessage + errorHint : userMessage
+  conversation.push({ role: 'user', content: fullMessage })
 
   const goalAnchor = userMessage
   const tools = getToolSpecs()
