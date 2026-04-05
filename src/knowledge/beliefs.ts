@@ -34,7 +34,7 @@ export type BeliefDomain =
   | 'technical'      // "TypeScript is better than JavaScript for large projects"
   | 'personal'       // "Joel prefers direct communication"
   | 'tool'           // "llama-server needs --jinja for tool calling"
-  | 'project'        // "Gemma Code uses TF-IDF for search"
+  | 'project'        // "Ghost Code uses TF-IDF for search"
   | 'world'          // "Small models can be powerful with good architecture"
   | 'self'           // "I'm good at TypeScript but struggle with C++"
 
@@ -65,7 +65,7 @@ interface BeliefStore {
 // ── Storage ──────────────────────────────────────────────────────────────
 
 function getStorePath(): string {
-  const dir = join(homedir(), '.local', 'share', 'gemma-code', 'knowledge')
+  const dir = join(homedir(), '.local', 'share', 'ghost-code', 'knowledge')
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
   return join(dir, 'beliefs.json')
 }

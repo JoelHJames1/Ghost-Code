@@ -1,11 +1,11 @@
 {
-  "name": "gemma-code",
+  "name": "ghost-code",
   "version": "1.0.0",
-  "description": "Gemma Code — Multi-agent coding CLI powered by llama.cpp + gemma4",
+  "description": "Ghost Code — Multi-agent coding CLI powered by llama.cpp + gemma4",
   "license": "MIT",
   "type": "module",
   "bin": {
-    "gemma": "./src/index.ts"
+    "ghost": "./src/index.ts"
   },
   "scripts": {
     "start": "bun src/index.ts",

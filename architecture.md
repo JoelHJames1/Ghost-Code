@@ -1,4 +1,4 @@
-# Gemma Code — System Architecture
+# Ghost Code — System Architecture
 
 ## Philosophy
 
@@ -13,7 +13,7 @@ A 2B parameter model with persistent identity, infinite memory, and self-directe
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
 │                                                                         │
-│   User types "gemma"                                                    │
+│   User types "ghost"                                                    │
 │     │                                                                   │
 │     ▼                                                                   │
 │   ┌─────────────────────────────────��───────────────────────────────┐   │
@@ -100,7 +100,7 @@ src/
 │
 ├── config.ts             Layered configuration
 │   ├── CLI args > env vars > config file > defaults
-│   ├── ~/.config/gemma-code/config.json
+│   ├── ~/.config/ghost-code/config.json
 │   └── Model, port, GPU layers, context size, flash attention
 │
 └── errors.ts             Error classification + retry
@@ -132,7 +132,7 @@ src/
 │   ├── Flat summary + episode storage on compaction
 │   ├── Fact supersession (active/superseded status)
 │   ├── Vector search with metadata filtering + caching
-│   └── Memory stored at ~/.local/share/gemma-code/memory.json
+│   └── Memory stored at ~/.local/share/ghost-code/memory.json
 │
 ├── episodes.ts           Episodic memory (EM-LLM inspired)
 │   ├── Boundary detection: topic shift, file switch, error spike,
@@ -140,7 +140,7 @@ src/
 │   ├── Structured metadata: files, tools, errors, decisions
 │   ├── Two-stage retrieval: TF-IDF similarity + temporal contiguity
 │   ├── formatEpisodesForContext() with char budget
-│   └── Stored at .gemma-code/episodes.json
+│   └── Stored at .ghost-code/episodes.json
 │
 ├── surprisal.ts          Logprob-based boundary detection
 │   ├── extractSurprisalFromResponse() — parse OpenAI logprobs format
@@ -166,7 +166,7 @@ src/
 │   └── clearSearchCache() on memory writes
 │
 ├── scratchpad.ts         Agent's persistent notepad
-│   ├── .gemma-code/scratchpad.md — always loaded into context
+│   ├── .ghost-code/scratchpad.md — always loaded into context
 │   ├── 4KB limit with auto-trim of oldest entries
 │   └── read, write, append, clear operations
 │
@@ -174,7 +174,7 @@ src/
 │   ├── Auto-save every 5 tool rounds
 │   ├── Manual /checkpoint and /resume
 │   ├── Last 5 checkpoints kept
-│   └── Stored at .gemma-code/checkpoints/
+│   └── Stored at .ghost-code/checkpoints/
 │
 └── eventlog.ts           Append-only ground truth
     ├── JSONL format — every action recorded
@@ -182,7 +182,7 @@ src/
     │   compaction, checkpoint, session_start/end
     ├── Queryable by type, actor, scope, time
     ├── getRecentActivitySummary() for context recovery
-    └── Stored at .gemma-code/events.jsonl
+    └── Stored at .ghost-code/events.jsonl
 ```
 
 ### Layer 3: Identity System
@@ -190,7 +190,7 @@ src/
 ```
 src/identity/
 ├── store.ts              Persistent self-model
-│   ├── identity.json — who Gemma IS
+│   ├── identity.json — who Ghost IS
 │   │   ├── Personality traits with strength (0-1)
 │   │   ├── Values (honesty, growth, relationships, agency)
 │   │   ├── Beliefs array with confidence + evidence
@@ -214,7 +214,7 @@ src/identity/
 │   ├── memoriesAbout(personId) — per-person recall
 │   ├── definingMemories() — most significant experiences
 │   ├── Max 500 memories, high-significance prioritized
-│   └── Stored at ~/.local/share/gemma-code/identity/autobiographical.json
+│   └── Stored at ~/.local/share/ghost-code/identity/autobiographical.json
 │
 └── bridge.ts             Session lifecycle
     ├── startSession() — load identity, increment session count, build context
@@ -246,7 +246,7 @@ src/knowledge/
 │   ├── queryEntity() — traverse relations from an entity
 │   ├── searchGraph() — TF-IDF over entities + relations
 │   ├── Max 1000 relations
-│   └── Stored at ~/.local/share/gemma-code/knowledge/graph.json
+│   └── Stored at ~/.local/share/ghost-code/knowledge/graph.json
 │
 ├── beliefs.ts            Typed beliefs with confidence
 │   ├── Domains: technical, personal, tool, project, world, self
@@ -259,7 +259,7 @@ src/knowledge/
 │   ├── Contradiction detection (same domain, negation mismatch)
 │   ├── getUncertainBeliefs() — for abstention ("I'm not sure")
 │   ├── Max 300 beliefs (active + revised + abandoned)
-│   └── Stored at ~/.local/share/gemma-code/knowledge/beliefs.json
+│   └── Stored at ~/.local/share/ghost-code/knowledge/beliefs.json
 │
 └── temporal.ts           Time-aware reasoning
     ├── getRelationshipTimeline() — first met, last interaction, frequency
@@ -278,7 +278,7 @@ src/growth/
 │   ├── Questions persist with priority and occurrence count
 │   ├── Status: open → answered | irrelevant
 │   ├── Daemon uses top questions for autonomous web research
-│   └── Stored at ~/.local/share/gemma-code/growth/curiosity.json
+│   └── Stored at ~/.local/share/ghost-code/growth/curiosity.json
 │
 ├── skills.ts             Skill tracking with trends
 │   ├── Confidence (0-1) from recency-weighted practice history
@@ -287,7 +287,7 @@ src/growth/
 │   ├── Peak confidence tracking
 │   ├── Strengths (>0.7) and weaknesses (<0.4) identification
 │   ├── Per-skill notes
-│   └── Stored at ~/.local/share/gemma-code/growth/skills.json
+│   └── Stored at ~/.local/share/ghost-code/growth/skills.json
 │
 ├── goals.ts              Persistent goals
 │   ├── Span sessions — "Help Joel build the best agent CLI"
@@ -295,7 +295,7 @@ src/growth/
 │   ├── Goal evolution (transforms as understanding deepens)
 │   ├── Auto-detected from user messages ("build a...", "learn...")
 │   ├── Status: active, completed, paused, evolved
-│   └── Stored at ~/.local/share/gemma-code/growth/goals.json
+│   └── Stored at ~/.local/share/ghost-code/growth/goals.json
 │
 └── learn.ts              Self-directed web learning
     ├── /learn React → 5-stage pipeline:
@@ -407,11 +407,11 @@ src/channels/
     ├── QR code login printed in terminal
     ├── Session persistence (reconnects without re-scanning)
     ├── Direct messages: responds to all
-    ├── Groups: responds only when @gemma mentioned
+    ├── Groups: responds only when @ghost mentioned
     ├── Per-chat conversation contexts
     ├── Typing indicator while processing
     ├── Text chunking at 4000 char limit
-    └── Auth stored at ~/.local/share/gemma-code/whatsapp-auth/
+    └── Auth stored at ~/.local/share/ghost-code/whatsapp-auth/
 ```
 
 ---
@@ -419,7 +419,7 @@ src/channels/
 ## Data Storage Map
 
 ```
-~/.local/share/gemma-code/           ← Global (follows Gemma everywhere)
+~/.local/share/ghost-code/           ← Global (follows Ghost everywhere)
 ├── identity/
 │   ├── identity.json                 Who Gemma IS (versioned)
 │   ├── identity.log.jsonl            Version history
@@ -434,10 +434,10 @@ src/channels/
 ├── memory.json                       Searchable memory store
 └── whatsapp-auth/                    WhatsApp credentials
 
-~/.config/gemma-code/
+~/.config/ghost-code/
 └── config.json                       User configuration
 
-.gemma-code/                          ← Per-project (in project directory)
+.ghost-code/                          ← Per-project (in project directory)
 ├── scratchpad.md                     Working notes (always in context)
 ├── episodes.json                     Episodic memory segments
 ├── events.jsonl                      Append-only event log
@@ -604,7 +604,7 @@ Is the agent busy?
 
 ```
 SESSION START:
-  1. loadIdentity() — load who Gemma is from disk
+  1. loadIdentity() — load who Ghost is from disk
   2. sessionCount++ — another life experience begins
   3. updateRelationship() — note interaction with this user
   4. startDaemon() — begin background maintenance
@@ -645,7 +645,7 @@ SESSION END:
 
 ### Reference Library
 ```
-~/.local/share/gemma-code/references/
+~/.local/share/ghost-code/references/
 ├── react/               ← Curated docs, higher quality than web search
 │   ├── index.json        Metadata + TF-IDF index
 │   └── chunks/           Pre-chunked text for retrieval
@@ -658,7 +658,7 @@ memories and beliefs. Curated > web-scraped.
 
 ### Error Database
 ```
-~/.local/share/gemma-code/errors/
+~/.local/share/ghost-code/errors/
 └── errors.json
     [{ error: "ENOENT: no such file", solution: "Check path exists first",
        occurrences: 3, lastSeen: "...", confidence: 0.95 }]
@@ -669,13 +669,13 @@ Integration: before executing tools, check error DB.
 
 ### Voice Mode
 ```
-User speaks → Whisper (local) → text → Gemma → text → TTS → speaker
+User speaks → Whisper (local) → text → Ghost → text → TTS → speaker
 No cloud. All local. Like Jarvis.
 ```
 
 ### Peer Learning
 ```
-Gemma A (Joel's)  ←→  Gemma B (friend's)
+Ghost A (Joel's)  ←→  Ghost B (friend's)
   │                      │
   └── Export knowledge    └── Import knowledge
       graph subset            graph subset
@@ -687,7 +687,7 @@ Share what you've learned without sharing conversations.
 ```
 After 1000 sessions:
   Export: corrections, beliefs, lessons → training data
-  Fine-tune: base model on Gemma's life experience
+  Fine-tune: base model on Ghost's life experience
   Result: the brain gets smarter FROM living
 
 Not training on the internet. Training on her own life.

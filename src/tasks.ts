@@ -125,7 +125,7 @@ export function formatTaskListForPrompt(): string {
 // ── Persistence ──────────────────────────────────────────────────────────
 
 function getTasksPath(): string {
-  const dir = join(homedir(), '.local', 'share', 'gemma-code')
+  const dir = join(homedir(), '.local', 'share', 'ghost-code')
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
   return join(dir, 'current-tasks.json')
 }

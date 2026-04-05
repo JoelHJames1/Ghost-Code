@@ -3,7 +3,7 @@
  *
  * Not flat text memories. A real graph of entities and relationships:
  *   - People: "Joel has an M3 Max with 48GB RAM"
- *   - Projects: "Gemma Code uses llama.cpp as its backend"
+ *   - Projects: "Ghost Code uses llama.cpp as its backend"
  *   - Concepts: "TF-IDF is a text similarity algorithm"
  *   - Tools: "llama-server needs --jinja for tool calling"
  *
@@ -14,9 +14,9 @@
  *
  * The graph enables relational reasoning:
  *   "What do I know about Joel's hardware?" → traverse from Joel entity
- *   "What tools does Gemma Code use?" → traverse from project entity
+ *   "What tools does Ghost Code use?" → traverse from project entity
  *
- * Storage: ~/.local/share/gemma-code/knowledge/graph.json
+ * Storage: ~/.local/share/ghost-code/knowledge/graph.json
  */
 
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs'
@@ -39,12 +39,12 @@ export interface Entity {
 }
 
 export type RelationType =
-  | 'owns'           // Joel owns Gemma Code
-  | 'uses'           // Gemma Code uses llama.cpp
+  | 'owns'           // Joel owns Ghost Code
+  | 'uses'           // Ghost Code uses llama.cpp
   | 'knows'          // I know Joel
-  | 'created'        // Joel created Gemma Code
-  | 'depends_on'     // Gemma Code depends on Bun
-  | 'part_of'        // api.ts is part of Gemma Code
+  | 'created'        // Joel created Ghost Code
+  | 'depends_on'     // Ghost Code depends on Bun
+  | 'part_of'        // api.ts is part of Ghost Code
   | 'related_to'     // TF-IDF related to vector search
   | 'has_property'   // Joel has M3 Max
   | 'learned_from'   // I learned X from Joel
@@ -72,7 +72,7 @@ interface KnowledgeStore {
 // ── Storage ──────────────────────────────────────────────────────────────
 
 function getStorePath(): string {
-  const dir = join(homedir(), '.local', 'share', 'gemma-code', 'knowledge')
+  const dir = join(homedir(), '.local', 'share', 'ghost-code', 'knowledge')
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
   return join(dir, 'graph.json')
 }

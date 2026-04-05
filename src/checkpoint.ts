@@ -9,7 +9,7 @@
  * If the session crashes or is interrupted, the user can resume
  * from the last checkpoint with /resume.
  *
- * Storage: .gemma-code/checkpoints/ in the project directory
+ * Storage: .ghost-code/checkpoints/ in the project directory
  */
 
 import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, unlinkSync } from 'fs'
@@ -20,7 +20,7 @@ const MAX_CHECKPOINTS = 5  // Keep last N checkpoints
 
 function getCheckpointDir(cwd?: string): string {
   const base = cwd || process.cwd()
-  const dir = join(base, '.gemma-code', 'checkpoints')
+  const dir = join(base, '.ghost-code', 'checkpoints')
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
   return dir
 }

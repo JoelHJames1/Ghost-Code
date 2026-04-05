@@ -8,8 +8,8 @@
  * This is the single most important mechanism for preventing "alzheimer" —
  * the agent writes notes here before they would be lost to compaction.
  *
- * Storage: .gemma-code/scratchpad.md in the project directory
- * Global: ~/.local/share/gemma-code/scratchpad.md as fallback
+ * Storage: .ghost-code/scratchpad.md in the project directory
+ * Global: ~/.local/share/ghost-code/scratchpad.md as fallback
  *
  * The scratchpad is injected into every model call, right after the
  * system prompt, so the model always has access to its notes.
@@ -27,12 +27,12 @@ const MAX_SCRATCHPAD_CHARS = 4096  // Hard limit to prevent bloat
  */
 export function getScratchpadPath(cwd?: string): string {
   if (cwd) {
-    const projectPath = join(cwd, '.gemma-code', 'scratchpad.md')
-    const dir = join(cwd, '.gemma-code')
+    const projectPath = join(cwd, '.ghost-code', 'scratchpad.md')
+    const dir = join(cwd, '.ghost-code')
     if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
     return projectPath
   }
-  const globalDir = join(homedir(), '.local', 'share', 'gemma-code')
+  const globalDir = join(homedir(), '.local', 'share', 'ghost-code')
   if (!existsSync(globalDir)) mkdirSync(globalDir, { recursive: true })
   return join(globalDir, 'scratchpad.md')
 }

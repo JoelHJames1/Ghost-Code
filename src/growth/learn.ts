@@ -1,7 +1,7 @@
 /**
- * Learning Mode — Gemma actively studies a topic to build expertise.
+ * Learning Mode — Ghost actively studies a topic to build expertise.
  *
- * When the user says "learn React" or "/learn Rust", Gemma:
+ * When the user says "learn React" or "/learn Rust", Ghost:
  * 1. Searches the web for tutorials, docs, and best practices
  * 2. Reads key pages and extracts core concepts
  * 3. Stores findings in the knowledge graph as entities + relations
@@ -9,7 +9,7 @@
  * 5. Records what she learned as autobiographical memories
  * 6. Adds the skill with initial confidence
  *
- * After learning, Gemma can use this knowledge when building projects.
+ * After learning, Ghost can use this knowledge when building projects.
  * "Build me a modern React website" → she uses her learned React knowledge.
  *
  * The learning is stored permanently — she never forgets what she studied.

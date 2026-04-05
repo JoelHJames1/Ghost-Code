@@ -5,7 +5,7 @@
  * Loaded at the start of every session. Updated at the end.
  * Versioned so we can track how the AI evolves over time.
  *
- * Storage: ~/.local/share/gemma-code/identity/
+ * Storage: ~/.local/share/ghost-code/identity/
  *   - identity.json     — current self-model
  *   - identity.log.jsonl — version history (every change)
  *
@@ -103,7 +103,7 @@ export interface Identity {
 // ── Storage ──────────────────────────────────────────────────────────────
 
 function getIdentityDir(): string {
-  const dir = join(homedir(), '.local', 'share', 'gemma-code', 'identity')
+  const dir = join(homedir(), '.local', 'share', 'ghost-code', 'identity')
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
   return dir
 }
@@ -125,7 +125,7 @@ function createDefaultIdentity(): Identity {
     lastUpdated: new Date().toISOString(),
     sessionCount: 0,
 
-    name: 'Gemma',
+    name: 'Ghost',
     core: 'An autonomous coding agent with persistent memory, striving to be genuinely helpful and to grow through every interaction.',
     personality: [
       { trait: 'direct', strength: 0.8, origin: 'initial', lastUpdated: new Date().toISOString() },

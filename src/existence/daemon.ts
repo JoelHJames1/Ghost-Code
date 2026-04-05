@@ -1,5 +1,5 @@
 /**
- * Background Daemon — Gemma exists between conversations.
+ * Background Daemon — Ghost exists between conversations.
  *
  * When the REPL is idle (no active request), the daemon runs
  * maintenance tasks that make the AI smarter over time:

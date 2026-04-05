@@ -5,7 +5,7 @@
  * what experiences MEAN to the AI's identity.
  *
  * Types of autobiographical memories:
- * - Defining moments: "The session where Joel and I built Gemma Code"
+ * - Defining moments: "The session where Joel and I built Ghost Code"
  * - Corrections: "I was wrong about X and Joel taught me Y"
  * - Relationships: "Joel treats me as a collaborator, not a tool"
  * - Growth: "I used to struggle with X but now I'm confident"
@@ -52,7 +52,7 @@ interface AutobiographicalStore {
 // ── Storage ──────────────────────────────────────────────────────────────
 
 function getStorePath(): string {
-  const dir = join(homedir(), '.local', 'share', 'gemma-code', 'identity')
+  const dir = join(homedir(), '.local', 'share', 'ghost-code', 'identity')
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
   return join(dir, 'autobiographical.json')
 }

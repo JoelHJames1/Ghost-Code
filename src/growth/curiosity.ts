@@ -1,7 +1,7 @@
 /**
  * Curiosity Engine — the AI identifies gaps in its own knowledge.
  *
- * After each session, Gemma reflects on what she encountered but
+ * After each session, Ghost reflects on what she encountered but
  * doesn't fully understand. These become "questions" that persist
  * across sessions and influence what she pays attention to.
  *
@@ -49,7 +49,7 @@ interface CuriosityStore {
 // ── Storage ─────────���────────────────────────────────────────────────────
 
 function getStorePath(): string {
-  const dir = join(homedir(), '.local', 'share', 'gemma-code', 'growth')
+  const dir = join(homedir(), '.local', 'share', 'ghost-code', 'growth')
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
   return join(dir, 'curiosity.json')
 }

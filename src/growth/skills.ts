@@ -48,7 +48,7 @@ interface SkillStore {
 // ── Storage ──────────────────────────────────────────────────────────────
 
 function getStorePath(): string {
-  const dir = join(homedir(), '.local', 'share', 'gemma-code', 'growth')
+  const dir = join(homedir(), '.local', 'share', 'ghost-code', 'growth')
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
   return join(dir, 'skills.json')
 }

@@ -7,14 +7,14 @@
  * Features:
  * - QR code login in terminal
  * - Direct messages and group chats
- * - @mention detection in groups (tag @gemma to trigger)
+ * - @mention detection in groups (tag @ghost to trigger)
  * - Image/media receiving
  * - Text chunking (4000 char WhatsApp limit)
  * - Typing indicator while thinking
  * - Session persistence (reconnects without re-scanning)
  *
  * Usage:
- *   gemma --whatsapp           Start WhatsApp mode
+ *   ghost --whatsapp           Start WhatsApp mode
  *   /whatsapp                  Connect from REPL
  *
  * Based on OpenClaw's WhatsApp implementation pattern.
@@ -41,7 +41,7 @@ import { logEvent } from '../eventlog.js'
 
 // ── Config ───────────────────────────────────────────────────────────────
 
-const AUTH_DIR = join(homedir(), '.local', 'share', 'gemma-code', 'whatsapp-auth')
+const AUTH_DIR = join(homedir(), '.local', 'share', 'ghost-code', 'whatsapp-auth')
 const MAX_MESSAGE_LENGTH = 4000
 const TYPING_DELAY_MS = 500
 
@@ -84,7 +84,7 @@ export async function connectWhatsApp(
     },
     logger,
     printQRInTerminal: true,  // Shows QR code in terminal
-    browser: ['Gemma Code', 'Desktop', '1.0.0'],
+    browser: ['Ghost Code', 'Desktop', '1.0.0'],
     generateHighQualityLinkPreview: false,
   })
 
@@ -203,8 +203,8 @@ function isBotMentioned(msg: any): boolean {
     return true
   }
 
-  // Check text for @gemma or bot's phone number
-  if (text.includes('@gemma') || text.includes('gemma')) {
+  // Check text for @ghost or bot's phone number
+  if (text.includes('@ghost') || text.includes('ghost')) {
     return true
   }
   if (botPhone && text.includes(botPhone)) {
@@ -229,8 +229,8 @@ async function handleIncomingMessage(
   // Clean up mentions from text
   let cleanText = text
     .replace(/@\d+/g, '')
-    .replace(/@gemma/gi, '')
-    .replace(/gemma,?\s*/i, '')
+    .replace(/@ghost/gi, '')
+    .replace(/ghost,?\s*/i, '')
     .trim()
 
   if (!cleanText) cleanText = 'Hello!'

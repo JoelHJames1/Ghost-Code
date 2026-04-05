@@ -13,7 +13,7 @@
  * 5. Summaries are stored as system messages in the conversation
  *
  * For persistent memory across sessions, we use a simple JSON file
- * at ~/.local/share/gemma-code/memory.json
+ * at ~/.local/share/ghost-code/memory.json
  */
 
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs'
@@ -48,7 +48,7 @@ interface MemoryStore {
 }
 
 function getMemoryPath(): string {
-  const dir = join(homedir(), '.local', 'share', 'gemma-code')
+  const dir = join(homedir(), '.local', 'share', 'ghost-code')
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
   return join(dir, 'memory.json')
 }

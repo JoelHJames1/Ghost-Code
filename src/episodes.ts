@@ -16,7 +16,7 @@
  * - Long idle gap between messages
  * - Explicit task transitions (TaskTracker updates)
  *
- * Storage: .gemma-code/episodes.json
+ * Storage: .ghost-code/episodes.json
  */
 
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs'
@@ -58,7 +58,7 @@ interface EpisodeStore {
 // ── Persistence ──────────────────────────────────────────────────────────
 
 function getEpisodePath(): string {
-  const dir = join(process.cwd(), '.gemma-code')
+  const dir = join(process.cwd(), '.ghost-code')
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
   return join(dir, 'episodes.json')
 }

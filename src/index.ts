@@ -1,18 +1,18 @@
 #!/usr/bin/env bun
 /**
- * Gemma Code — Agentic coding CLI powered by llama.cpp
+ * Ghost Code — Agentic coding CLI powered by llama.cpp
  *
- * When you type `gemma`, this CLI:
+ * When you type `ghost`, this CLI:
  * 1. Launches llama-server (llama.cpp) as the inference backend
  * 2. Waits for it to be ready
  * 3. Starts an interactive REPL with agentic tool calling + vision
  * 4. Stops llama-server on exit
  *
  * Usage:
- *   gemma                     Interactive REPL
- *   gemma -p "prompt"         Non-interactive (print mode)
- *   gemma --version           Show version
- *   gemma --model-path <path> Use a specific GGUF model file
+ *   ghost                     Interactive REPL
+ *   ghost -p "prompt"         Non-interactive (print mode)
+ *   ghost --version           Show version
+ *   ghost --model-path <path> Use a specific GGUF model file
  */
 
 import { existsSync, writeFileSync, mkdirSync } from 'fs'
@@ -23,7 +23,7 @@ import { createInterface } from 'readline'
 import chalk from 'chalk'
 import { type ServerConfig } from './api.js'
 import { createConversation, runAgent, runAgentWithImage, refreshSystemPrompt } from './agent.js'
-import { resolveConfig, formatConfig, type GemmaConfig } from './config.js'
+import { resolveConfig, formatConfig, type GhostConfig } from './config.js'
 import { estimateConversationTokens, getTokenBudget } from './context-window.js'
 import { getUsageStats } from './memory.js'
 import { getTaskList, formatTaskListForPrompt, clearTasks, loadPersistedTasks } from './tasks.js'
@@ -64,21 +64,21 @@ import {
 const args = process.argv.slice(2)
 
 if (args.includes('--version') || args.includes('-v')) {
-  console.log('1.0.0 (Gemma Code)')
+  console.log('1.0.0 (Ghost Code)')
   process.exit(0)
 }
 
 if (args.includes('--help') || args.includes('-h')) {
   console.log(`
-${chalk.bold('Gemma Code')} — Agentic coding CLI powered by llama.cpp
+${chalk.bold('Ghost Code')} — Agentic coding CLI powered by llama.cpp
 
 ${chalk.bold('Usage:')}
-  gemma                              Start interactive session
-  gemma -p "prompt"                  Non-interactive print mode
-  gemma --model-path <path>          Use a specific GGUF model file
-  gemma --hf-repo <repo>             Download model from HuggingFace
-  gemma --gpu-layers <n>             GPU layers to offload (default: 99)
-  gemma --version                    Show version
+  ghost                              Start interactive session
+  ghost -p "prompt"                  Non-interactive print mode
+  ghost --model-path <path>          Use a specific GGUF model file
+  ghost --hf-repo <repo>             Download model from HuggingFace
+  ghost --gpu-layers <n>             GPU layers to offload (default: 99)
+  ghost --version                    Show version
 
 ${chalk.bold('Vision:')}
   Attach images to any prompt by including a file path:
@@ -86,12 +86,12 @@ ${chalk.bold('Vision:')}
     ❯ /vision /path/to/mockup.png Implement this UI
 
 ${chalk.bold('Environment Variables:')}
-  GEMMA_MODEL_PATH             Path to GGUF model file
-  GEMMA_HF_REPO                HuggingFace repo for model download
-  GEMMA_GPU_LAYERS             GPU layers to offload
+  GHOST_MODEL_PATH             Path to GGUF model file
+  GHOST_HF_REPO                HuggingFace repo for model download
+  GHOST_GPU_LAYERS             GPU layers to offload
 
 ${chalk.bold('Config File:')}
-  ~/.config/gemma-code/config.json
+  ~/.config/ghost-code/config.json
 
 ${chalk.bold('Interactive Commands:')}
   /exit, /quit                Exit the session
@@ -116,7 +116,7 @@ ${chalk.bold('Example config.json:')}
 
 // Parse options
 let printPrompt: string | undefined
-const overrides: Partial<GemmaConfig> = {}
+const overrides: Partial<GhostConfig> = {}
 
 for (let i = 0; i < args.length; i++) {
   const arg = args[i]!
@@ -156,7 +156,7 @@ function getClipboardImage(): string | null {
     if (!check.includes('«class PNGf»') && !check.includes('TIFF')) return null
 
     // Save clipboard image to temp file
-    const tmpDir = join(tmpdir(), 'gemma-code')
+    const tmpDir = join(tmpdir(), 'ghost-code')
     if (!existsSync(tmpDir)) mkdirSync(tmpDir, { recursive: true })
     const tmpPath = join(tmpDir, `clipboard-${Date.now()}.png`)
 
@@ -839,7 +839,7 @@ function handleCommand(
           infoMsg(msg)
         }).then((connected) => {
           if (connected) {
-            infoMsg('WhatsApp connected! People can now message you or tag @gemma in groups.')
+            infoMsg('WhatsApp connected! People can now message you or tag @ghost in groups.')
           }
         }).catch((err) => {
           errorMsg(`WhatsApp error: ${err.message}`)

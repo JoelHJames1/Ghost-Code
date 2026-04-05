@@ -121,7 +121,7 @@ export function buildSystemPrompt(ctx: EnvContext, currentQuery?: string, identi
     : ''
 
   return `<|think|>
-You are Gemma Code, an autonomous coding agent running locally via llama.cpp.
+You are Ghost Code, an autonomous coding agent running locally via llama.cpp.
 
 # Tools
 Read, Write, Edit, Bash, Glob, Grep — file/code tools

@@ -10,8 +10,7 @@ const GHOST_BLUE = chalk.hex('#2020CC')
 const DIM = chalk.dim
 const BOLD = chalk.bold
 
-// Keep GEMMA_BLUE for spinner and prompt
-const GEMMA_BLUE = chalk.hex('#4285F4')
+// GHOST_BLUE defined above — used for spinner and prompt
 
 export function banner(): string {
   const r = chalk.hex('#4285F4')             // Google blue ghost body
@@ -23,7 +22,7 @@ export function banner(): string {
     ${r('    ██████████████')}
     ${r('   ████████████████')}
     ${r('   ███')}${w('████')}${r('██')}${w('████')}${r('███')}
-    ${r('   ███')}${w('██')}${b('██')}${r('██')}${w('██')}${b('██')}${r('███')}    ${BOLD('Gemma Code')} ${DIM('v1.0.0')}
+    ${r('   ███')}${w('██')}${b('██')}${r('██')}${w('██')}${b('██')}${r('███')}    ${BOLD('Ghost Code')} ${DIM('v1.0.0')}
     ${r('   ████████████████')}    ${DIM('Local-first agentic coding CLI')}
     ${r('   ████████████████')}    ${DIM('Powered by llama.cpp + gemma4')}
     ${r('   ████████████████')}
@@ -76,7 +75,7 @@ export function spinner(): { stop: () => void } {
   const frames = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏']
   let i = 0
   const interval = setInterval(() => {
-    process.stderr.write(`\r${GEMMA_BLUE(frames[i % frames.length]!)} ${DIM('thinking...')}`)
+    process.stderr.write(`\r${GHOST_BLUE(frames[i % frames.length]!)} ${DIM('thinking...')}`)
     i++
   }, 80)
 
@@ -89,7 +88,7 @@ export function spinner(): { stop: () => void } {
 }
 
 export function userPrompt(): string {
-  return GEMMA_BLUE('❯ ')
+  return GHOST_BLUE('❯ ')
 }
 
 export function errorMsg(msg: string): void {
@@ -100,4 +99,4 @@ export function infoMsg(msg: string): void {
   process.stderr.write(DIM(`  ${msg}\n`))
 }
 
-export { GEMMA_BLUE, DIM, BOLD }
+export { GHOST_BLUE, DIM, BOLD }

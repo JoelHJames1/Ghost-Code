@@ -6,7 +6,7 @@
  * canonical record of what happened — summaries and projections are derived
  * from it and can always be rebuilt.
  *
- * Stored at: .gemma-code/events.jsonl (newline-delimited JSON)
+ * Stored at: .ghost-code/events.jsonl (newline-delimited JSON)
  *
  * Benefits:
  * - Replay: rebuild any state by replaying the log
@@ -53,7 +53,7 @@ let logPath: string | null = null
 
 function ensureLogPath(): string {
   if (logPath) return logPath
-  const dir = join(process.cwd(), '.gemma-code')
+  const dir = join(process.cwd(), '.ghost-code')
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
   logPath = join(dir, 'events.jsonl')
   return logPath

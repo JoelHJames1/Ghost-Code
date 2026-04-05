@@ -4,7 +4,7 @@
  * WebSearch: uses DuckDuckGo (zero API key, zero signup)
  * WebFetch: fetches any URL and extracts readable text
  *
- * This gives Gemma the ability to:
+ * This gives Ghost the ability to:
  * - Research topics she's curious about
  * - Look up documentation
  * - Find code examples
@@ -70,7 +70,7 @@ async function duckDuckGoSearch(query: string, maxResults = 8): Promise<SearchRe
     const url = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`
     const res = await fetch(url, {
       headers: {
-        'User-Agent': 'Gemma-Code/1.0 (autonomous coding agent)',
+        'User-Agent': 'Ghost-Code/1.0 (autonomous coding agent)',
       },
       signal: AbortSignal.timeout(15_000),
     })
@@ -116,7 +116,7 @@ async function duckDuckGoSearch(query: string, maxResults = 8): Promise<SearchRe
     try {
       const url = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1&skip_disambig=1`
       const res = await fetch(url, {
-        headers: { 'User-Agent': 'Gemma-Code/1.0' },
+        headers: { 'User-Agent': 'Ghost-Code/1.0' },
         signal: AbortSignal.timeout(10_000),
       })
       if (res.ok) {
@@ -235,7 +235,7 @@ export const WebFetchTool: ToolDefinition = {
     try {
       const res = await fetch(url, {
         headers: {
-          'User-Agent': 'Gemma-Code/1.0 (autonomous coding agent)',
+          'User-Agent': 'Ghost-Code/1.0 (autonomous coding agent)',
           'Accept': 'text/html,application/xhtml+xml,text/plain',
         },
         signal: AbortSignal.timeout(15_000),

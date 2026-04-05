@@ -20,7 +20,7 @@
 
 ```
 
-# 👻 Gemma Code
+# 👻 Ghost Code
 
 ### Not a bigger brain — a living mind that grows.
 
@@ -44,7 +44,7 @@ A senior developer with average IQ beats a genius who just walked in the door. E
 
 We applied this to AI: instead of making the brain bigger, we gave it a life.
 
-| | GPT-4 / Claude | Gemma Code |
+| | GPT-4 / Claude | Ghost Code |
 |---|---|---|
 | Brain size | 400B-1800B parameters | 2B parameters |
 | Memory between sessions | None | Infinite and persistent |
@@ -63,7 +63,7 @@ We applied this to AI: instead of making the brain bigger, we gave it a life.
 
 ### The Model: Gemma4 E2B
 
-Google's Gemma4 with 2 billion effective parameters. Only ~1GB of RAM. 256K token context window. Vision capable. Runs on any laptop via llama.cpp.
+Google's Gemma4 with 2 billion effective parameters. Only ~1GB of RAM. 128K token context window. Vision capable. Runs on any laptop via llama.cpp.
 
 The model is the brain. Everything below is the mind we built around it.
 
@@ -73,7 +73,7 @@ Inspired by [MemGPT](https://memgpt.ai) — the context window is RAM, external 
 
 ```
 Layer 1: CONTEXT WINDOW (the "RAM")
-  │  What the model sees right now (~32K tokens)
+  │  What the model sees right now (~128K tokens)
   │  Managed by the Context Compiler with token budgeting:
   │    15% System prompt | 20% Pinned state | 10% Retrieved memory
   │    50% Conversation  | 5% Recovery instructions
@@ -103,7 +103,7 @@ Layer 6: CHECKPOINTS (crash recovery)
 
 ### The Context Compiler
 
-The model can only see ~32K tokens at once. Memory on disk can be millions of tokens. The Context Compiler decides what to load, using a token budget:
+The model can only see ~128K tokens at once. Memory on disk can be millions of tokens. The Context Compiler decides what to load, using a token budget:
 
 1. **Vector search** (TF-IDF) finds relevant memories
 2. **Temporal contiguity** pulls neighboring episodes for causal context
@@ -126,7 +126,7 @@ This is inspired by [EM-LLM](https://arxiv.org/abs/2407.09450) — episodic memo
 ### The Identity: Who Gemma IS
 
 ```
-~/.local/share/gemma-code/identity/identity.json
+~/.local/share/ghost-code/identity/identity.json
 ```
 
 Not hardcoded — evolved through experience:
@@ -139,7 +139,7 @@ Not hardcoded — evolved through experience:
 
 Loaded at session start. Updated at session end. The AI knows who it is.
 
-### Relationships: How Gemma Knows You
+### Relationships: How Ghost Knows You
 
 ```json
 {
@@ -147,7 +147,7 @@ Loaded at session start. Updated at session end. The AI knows who it is.
   "interactionCount": 47,
   "trust": 0.87,
   "communicationStyle": "direct and concise",
-  "sharedHistory": ["Built Gemma Code from scratch", "Implemented learning system"],
+  "sharedHistory": ["Built Ghost Code from scratch", "Implemented learning system"],
   "notes": ["Provides direct feedback", "Prefers deep work sessions"]
 }
 ```
@@ -167,7 +167,7 @@ Loaded at session start. Updated at session end. The AI knows who it is.
 Not flat text memories — a real graph of entities and relationships:
 
 ```
-Joel ─[created]─→ Gemma Code ─[uses]─→ llama.cpp
+Joel ─[created]─→ Ghost Code ─[uses]─→ llama.cpp
   │                    │                     │
   ├─[has]─→ M3 Max    ├─[uses]─→ gemma4     ├─[is_a]─→ technology
   │                    │
@@ -213,11 +213,11 @@ Below 30% → belief **revised**. Below 15% → **abandoned**. The AI can say "I
     Goal created: "Learn React" [5/5 milestones ✓]
 ```
 
-After learning, Gemma uses this knowledge when you ask her to build something. The knowledge is permanent — stored in the knowledge graph, beliefs, and skills.
+After learning, Ghost uses this knowledge when you ask her to build something. The knowledge is permanent — stored in the knowledge graph, beliefs, and skills.
 
 ### Curiosity Engine: Questions She Wants Answered
 
-After each session, Gemma identifies gaps in her knowledge:
+After each session, Ghost identifies gaps in her knowledge:
 
 ```
 [60%] "What is Docker networking?" — mentioned 3 times, never explained
@@ -289,8 +289,8 @@ Each worker gets its own conversation context and full tool access.
 
 ### Channels
 
-- **Terminal**: `gemma` — full interactive REPL
-- **WhatsApp**: `/whatsapp` → scan QR → @gemma in groups (Baileys, zero API key)
+- **Terminal**: `ghost` — full interactive REPL
+- **WhatsApp**: `/whatsapp` → scan QR → @ghost in groups (Baileys, zero API key)
 - **Vision**: paste images, `/vision`, `/paste` clipboard
 
 ### Tool Call Repair
@@ -305,10 +305,10 @@ Fixes malformed model outputs before they waste a round trip:
 
 ```bash
 brew install llama.cpp
-git clone https://github.com/JoelHJames1/Gemma-Code.git
-cd Gemma-Code
+git clone https://github.com/JoelHJames1/Ghost-Code.git
+cd Ghost-Code
 bun install && bun link
-gemma
+ghost
 ```
 
 First run downloads the model (~1GB). Subsequent launches load in <1 second.
@@ -340,7 +340,7 @@ Day 100:  I know you, your stack, your style, your projects
 ```
 
 ChatGPT on day 100 is the same as day 1.
-Gemma on day 100 is 100 times wiser.
+Ghost on day 100 is 100 times wiser.
 
 **The encyclopedia never changes. The brain grows every day.**
 
@@ -420,6 +420,6 @@ src/
 
 *49 files. 11,142 lines. Zero cloud. The AI remembers, learns, grows, and develops relationships across every session.*
 
-**👻 Gemma Code — Not a bigger brain. A living mind that grows.**
+**👻 Ghost Code — Not a bigger brain. A living mind that grows.**
 
 </div>

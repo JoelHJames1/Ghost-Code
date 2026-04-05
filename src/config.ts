@@ -1,13 +1,13 @@
 /**
  * Configuration system — layered resolution: CLI args > env vars > config file > defaults.
- * Config file lives at ~/.config/gemma-code/config.json
+ * Config file lives at ~/.config/ghost-code/config.json
  */
 
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs'
 import { join } from 'path'
 import { homedir } from 'os'
 
-export interface GemmaConfig {
+export interface GhostConfig {
   /** Model display name */
   model: string
   /** Base URL for llama-server API (auto-set) */
@@ -40,11 +40,11 @@ export interface GemmaConfig {
   llamaExtraArgs: string[]
 }
 
-const DEFAULTS: GemmaConfig = {
+const DEFAULTS: GhostConfig = {
   model: 'gemma4:e2b',
   baseUrl: 'http://127.0.0.1:8776',
   maxToolRounds: 30,
-  projectInstructionsFile: '.gemma-code.md',
+  projectInstructionsFile: '.ghost-code.md',
   requestTimeoutMs: 120_000,
   llamaPort: 8776,
   gpuLayers: 99,
@@ -54,7 +54,7 @@ const DEFAULTS: GemmaConfig = {
 }
 
 function getConfigDir(): string {
-  return join(homedir(), '.config', 'gemma-code')
+  return join(homedir(), '.config', 'ghost-code')
 }
 
 function getConfigPath(): string {
@@ -62,10 +62,10 @@ function getConfigPath(): string {
 }
 
 /**
- * Load config from ~/.config/gemma-code/config.json.
+ * Load config from ~/.config/ghost-code/config.json.
  * Returns empty object if file doesn't exist or is invalid.
  */
-function loadConfigFile(): Partial<GemmaConfig> {
+function loadConfigFile(): Partial<GhostConfig> {
   const path = getConfigPath()
   try {
     if (!existsSync(path)) return {}
@@ -79,13 +79,13 @@ function loadConfigFile(): Partial<GemmaConfig> {
 /**
  * Resolve final config: CLI overrides > env vars > config file > defaults.
  */
-export function resolveConfig(overrides: Partial<GemmaConfig> = {}): GemmaConfig {
+export function resolveConfig(overrides: Partial<GhostConfig> = {}): GhostConfig {
   const file = loadConfigFile()
-  const env: Partial<GemmaConfig> = {}
+  const env: Partial<GhostConfig> = {}
 
-  if (process.env.GEMMA_MODEL_PATH) env.modelPath = process.env.GEMMA_MODEL_PATH
-  if (process.env.GEMMA_HF_REPO) env.hfRepo = process.env.GEMMA_HF_REPO
-  if (process.env.GEMMA_GPU_LAYERS) env.gpuLayers = parseInt(process.env.GEMMA_GPU_LAYERS, 10)
+  if (process.env.GHOST_MODEL_PATH) env.modelPath = process.env.GHOST_MODEL_PATH
+  if (process.env.GHOST_HF_REPO) env.hfRepo = process.env.GHOST_HF_REPO
+  if (process.env.GHOST_GPU_LAYERS) env.gpuLayers = parseInt(process.env.GHOST_GPU_LAYERS, 10)
   const resolved = {
     ...DEFAULTS,
     ...file,
@@ -104,7 +104,7 @@ export function resolveConfig(overrides: Partial<GemmaConfig> = {}): GemmaConfig
 /**
  * Save config to disk.
  */
-export function saveConfig(config: Partial<GemmaConfig>): void {
+export function saveConfig(config: Partial<GhostConfig>): void {
   const dir = getConfigDir()
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
   const existing = loadConfigFile()
@@ -115,7 +115,7 @@ export function saveConfig(config: Partial<GemmaConfig>): void {
 /**
  * Format config for display.
  */
-export function formatConfig(config: GemmaConfig): string {
+export function formatConfig(config: GhostConfig): string {
   const lines: string[] = []
   lines.push(`  model: ${config.model}`)
   lines.push(`  baseUrl: ${config.baseUrl}`)

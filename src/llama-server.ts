@@ -1,8 +1,8 @@
 /**
  * llama-server process manager — starts, monitors, and stops a local
- * llama.cpp server as the inference backend for Gemma Code.
+ * llama.cpp server as the inference backend for Ghost Code.
  *
- * When the user types `gemma`, this module:
+ * When the user types `ghost`, this module:
  * 1. Locates or downloads the llama-server binary
  * 2. Locates the GGUF model file (or downloads via HuggingFace)
  * 3. Starts llama-server as a child process
@@ -57,10 +57,10 @@ let serverProcess: ChildProcess | null = null
 let serverBaseUrl: string | null = null
 
 /**
- * Get the data directory for Gemma Code.
+ * Get the data directory for Ghost Code.
  */
 function getDataDir(): string {
-  const dir = join(homedir(), '.local', 'share', 'gemma-code')
+  const dir = join(homedir(), '.local', 'share', 'ghost-code')
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
   return dir
 }
@@ -197,7 +197,7 @@ export async function startLlamaServer(
   // Validate model is specified
   if (!cfg.modelPath && !cfg.hfRepo) {
     throw new Error(
-      'No model specified. Set one in ~/.config/gemma-code/config.json:\n' +
+      'No model specified. Set one in ~/.config/ghost-code/config.json:\n' +
       '  { "modelPath": "/path/to/model.gguf" }\n' +
       '  or: { "hfRepo": "google/gemma-3-27b-it-GGUF" }\n' +
       '  or pass --model-path on the command line'
@@ -398,7 +398,7 @@ export async function ensureAndStartServer(
         'Please install it manually:\n' +
         '  macOS:  brew install llama.cpp\n' +
         '  Linux:  git clone https://github.com/ggml-org/llama.cpp && cd llama.cpp && cmake -B build && cmake --build build --config Release -j\n' +
-        '  Then:   gemma --help'
+        '  Then:   ghost --help'
       )
     }
     cfg.binaryPath = binary
